@@ -8,8 +8,7 @@ services:
       npm install
       npm run build
     staticPublishPath: ./dist
+    nodeVersion: 18.20.2
     envVars:
       - key: NODE_VERSION
-        value: 18.x
-      - key: NPM_CONFIG_PREFIX
-        value: /opt/render/.npm-global
+        value: 18.20.2
