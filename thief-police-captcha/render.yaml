@@ -1,16 +1,9 @@
 services:
   - type: web
     name: thief-police-captcha
-    env: node
-    buildCommand: |
-      cd thief-police-captcha
-      npm install
-      npm run build
-    staticPublishPath: ./thief-police-captcha/dist
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION
         value: 18.x
-    routes:
-      - type: rewrite
-        source: "/*"
-        destination: "/index.html"
