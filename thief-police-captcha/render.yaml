@@ -1,8 +1,12 @@
 services:
   - type: web
     name: thief-police-captcha
-    env: docker
-    dockerfilePath: ./Dockerfile
+    env: static
+    buildCommand: |
+      cd thief-police-captcha
+      npm install
+      npm run build
+    staticPublishPath: ./thief-police-captcha/dist
     envVars:
-      - key: NODE_ENV
-        value: production
+      - key: NODE_VERSION
+        value: 18.20.2
