@@ -2,8 +2,14 @@ services:
   - type: web
     name: thief-police-captcha
     env: static
-    buildCommand: npm install && npm run build
+    buildCommand: |
+      echo "Node.js version: $(node -v)"
+      echo "NPM version: $(npm -v)"
+      npm install
+      npm run build
     staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION
         value: 18.x
+      - key: NPM_CONFIG_PREFIX
+        value: /opt/render/.npm-global
