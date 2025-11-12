@@ -1,14 +1,8 @@
 services:
   - type: web
     name: thief-police-captcha
-    env: static
-    buildCommand: |
-      echo "Node.js version: $(node -v)"
-      echo "NPM version: $(npm -v)"
-      npm install
-      npm run build
-    staticPublishPath: ./dist
-    nodeVersion: 18.20.2
+    env: docker
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: NODE_VERSION
-        value: 18.20.2
+      - key: NODE_ENV
+        value: production
