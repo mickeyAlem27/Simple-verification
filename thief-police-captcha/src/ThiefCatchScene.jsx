@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 
-export default function ThiefCatchScene() {
+export default function ThiefCatchScene({ onVerify }) {
   const STAGE_WIDTH = 600;
   const STAGE_HEIGHT = 400;
 
   const policePos = { x: STAGE_WIDTH - 100, y: STAGE_HEIGHT / 2 - 50 };
   const thiefHome = { x: 50, y: STAGE_HEIGHT - 60 };
   const bank = { x: 50, y: 20 };
+
+  const totalRounds = 2;
+  const tripTime = 4000; // slower thief
+  const totalDistance = Math.abs(bank.y - thiefHome.y);
+  const speed = totalDistance / (tripTime / 16.6); // px per frame
 
   const [thiefPos, setThiefPos] = useState({ ...thiefHome });
   const [verified, setVerified] = useState(false);
@@ -15,155 +20,134 @@ export default function ThiefCatchScene() {
   const [reticlePos, setReticlePos] = useState({ x: policePos.x, y: policePos.y });
   const [tripCount, setTripCount] = useState(0);
   const [kickEffect, setKickEffect] = useState(false);
-  const [failed, setFailed] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [stars, setStars] = useState([]);
 
-  const stageRef = useRef(null);
-  const forwardRef = useRef(true); // track direction
-  const [reticleAngle, setReticleAngle] = useState(0);
+  const forwardRef = useRef(true);
+  const pauseRef = useRef(false);
+  const thiefRef = useRef(thiefPos); // ✅ Real-time thief tracker
+  const animationRefs = useRef({ arrow: null, thief: null });
 
-  // 🔁 Reticle rotation
+  // Update ref whenever thief moves
   useEffect(() => {
-    const interval = setInterval(() => setReticleAngle((prev) => (prev + 3) % 360), 50);
-    return () => clearInterval(interval);
-  }, []);
+    thiefRef.current = thiefPos;
+  }, [thiefPos]);
 
-  // 🕵️‍♂️ Thief movement & star follow
+  // ✅ Thief movement
   useEffect(() => {
-    if (verified || failed || showWelcome) return;
-
-    const baseSpeed = 1.4;
-    let animationFrame;
+    if (verified || showWelcome) return;
+    let frame;
 
     const move = () => {
       setThiefPos((pos) => {
+        if (pauseRef.current) return pos;
+
         const target = forwardRef.current ? bank : thiefHome;
-        const dx = target.x - pos.x;
         const dy = target.y - pos.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < baseSpeed) {
-          // 🌟 When thief reaches bank
-          if (forwardRef.current) {
-            const newStarsCount = tripCount + 1; // 1 → 1 star, 2 → 2 stars, 3 → 3 stars
-            const newStars = Array.from({ length: newStarsCount }).map(() => ({
-              id: Date.now() + Math.random(),
-              offsetX: Math.random() * 30 - 15,
-              offsetY: Math.random() * 30 - 15,
-              size: 18 + Math.random() * 6,
-              life: 1,
-            }));
-            setStars(newStars);
-          } else {
-            // 🏠 Returned home
-            setTripCount((prev) => {
-              const newCount = prev + 1;
-              if (newCount >= 3) {
-                setFailed(true);
-                setMessage("❌ Failed to verify!");
-              }
-              return newCount;
-            });
-          }
-
-          // Reverse direction
-          forwardRef.current = !forwardRef.current;
-          return pos;
+        if (Math.abs(dy) < speed) {
+          const nextTrip = tripCount + 1;
+          pauseRef.current = true;
+          setTimeout(() => {
+            if (nextTrip >= totalRounds * 2) setShowWelcome(true);
+            else {
+              setTripCount(nextTrip);
+              forwardRef.current = !forwardRef.current;
+              pauseRef.current = false;
+            }
+          }, 800);
+          return { ...pos, y: target.y };
         }
 
-        const curveX = Math.sin(Date.now() / 400) * 2;
-        const curveY = Math.cos(Date.now() / 350) * 1.5;
-
-        // ✨ Update star position to follow thief
-        setStars((prevStars) =>
-          prevStars.map((s) => ({
-            ...s,
-            life: s.life > 0.02 ? s.life - 0.002 : 0,
-            x: pos.x + s.offsetX + curveX,
-            y: pos.y + s.offsetY + curveY,
-          }))
-        );
-
-        return {
-          x: pos.x + (dx / dist) * baseSpeed + curveX,
-          y: pos.y + (dy / dist) * baseSpeed + curveY,
-        };
+        const moveY = dy > 0 ? speed : -speed;
+        const offsetX = Math.sin(Date.now() * 0.006) * 5; // tiny wiggle
+        return { x: thiefHome.x + offsetX, y: pos.y + moveY };
       });
-
-      animationFrame = requestAnimationFrame(move);
+      frame = requestAnimationFrame(move);
     };
-
-    animationFrame = requestAnimationFrame(move);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [verified, failed, showWelcome, tripCount]);
-
-  // 🪃 Throw action
+    frame = requestAnimationFrame(move);
+    animationRefs.current.thief = frame;
+    return () => cancelAnimationFrame(frame);
+  }, [verified, showWelcome, tripCount, speed]);
+// Inside handleShoot
+  // ✅ Throw boomerang (real-time collision)
   const handleShoot = () => {
-    if (verified || arrowPos || failed) return;
+    if (verified || arrowPos) return;
 
-    setArrowPos({ x: policePos.x, y: policePos.y });
-    const duration = 800;
+    const startX = policePos.x;
+    const startY = policePos.y;
+    const targetX = reticlePos.x;
+    const targetY = reticlePos.y;
+
+    const duration = 1000;
     const startTime = performance.now();
 
     const animate = (time) => {
-      const progress = (time - startTime) / duration;
-      if (progress < 1) {
-        setArrowPos({
-          x: policePos.x + (reticlePos.x - policePos.x) * progress,
-          y: policePos.y + (reticlePos.y - policePos.y) * progress,
-        });
-        requestAnimationFrame(animate);
-      } else {
-        const dx = reticlePos.x - thiefPos.x;
-        const dy = reticlePos.y - thiefPos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+      const progress = Math.min(1, (time - startTime) / duration);
+      const x = startX + (targetX - startX) * progress;
+      const y = startY + (targetY - startY) * progress;
+      setArrowPos({ x, y });
 
-        if (distance < 25) {
-          setVerified(true);
-          setMessage("💥 BOOM! Thief got caught!");
-          setKickEffect(true);
-          setTimeout(() => {
-            setKickEffect(false);
-            setShowWelcome(true);
-          }, 800);
-        } else {
-          setMessage("❌ Missed! Try again!");
-        }
-        setTimeout(() => setArrowPos(null), 500);
+      // ✅ Live collision with thiefRef
+      const thief = thiefRef.current;
+      const dx = Math.abs(thief.x - x);
+      const dy = Math.abs(thief.y - y);
+
+      if (dx < 25 && dy < 35) {
+        setVerified(true);
+        setKickEffect(true);
+        setMessage("💥 Boom! You hit the thief perfectly!");
+        cancelAnimationFrame(animationRefs.current.arrow);
+        setTimeout(() => {
+          setKickEffect(false);
+          setShowWelcome(true);
+          if (onVerify) onVerify(true);
+        }, 800);
+        return;
+      }
+
+      if (progress < 1 && !verified) {
+        animationRefs.current.arrow = requestAnimationFrame(animate);
+      } else {
+        if (!verified) setMessage("❌ Missed! Try again!");
+        setTimeout(() => setArrowPos(null), 800);
       }
     };
 
-    requestAnimationFrame(animate);
+    animationRefs.current.arrow = requestAnimationFrame(animate);
   };
 
-  // 🎯 Drag target
+  // ✅ Smooth and responsive target drag
   const handlePointerDown = (e) => {
     e.preventDefault();
-    const pointerMove = (moveEvent) => {
-      const rect = stageRef.current.getBoundingClientRect();
-      const x = Math.max(20, Math.min(STAGE_WIDTH - 20, moveEvent.clientX - rect.left));
-      const y = Math.max(20, Math.min(STAGE_HEIGHT - 20, moveEvent.clientY - rect.top));
+    const container = e.target.closest("div");
+    const rect = container.getBoundingClientRect();
+
+    const move = (ev) => {
+      const x = Math.max(20, Math.min(STAGE_WIDTH - 20, ev.clientX - rect.left));
+      const y = Math.max(20, Math.min(STAGE_HEIGHT - 20, ev.clientY - rect.top));
       setReticlePos({ x, y });
     };
-    const pointerUp = () => {
-      document.removeEventListener("pointermove", pointerMove);
-      document.removeEventListener("pointerup", pointerUp);
+
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
     };
-    document.addEventListener("pointermove", pointerMove);
-    document.addEventListener("pointerup", pointerUp);
+
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
   };
 
   const handleRetry = () => {
-    setFailed(false);
     setVerified(false);
     setTripCount(0);
     setThiefPos({ ...thiefHome });
     setMessage("🎯 Drag the target and throw the stick!");
-    setStars([]);
+    setArrowPos(null);
+    setShowWelcome(false);
+    forwardRef.current = true;
+    pauseRef.current = false;
   };
 
-  // 🎉 Success screen
+  // ✅ Mission complete
   if (showWelcome) {
     return (
       <div
@@ -179,19 +163,16 @@ export default function ThiefCatchScene() {
           fontFamily: "Poppins, sans-serif",
         }}
       >
-        <h1 style={{ fontSize: 40 }}>🎉 Mission Complete!</h1>
-        <h2 style={{ fontSize: 28, marginBottom: 30 }}>Welcome, Officer 👮‍♂️</h2>
+        <h1 style={{ fontSize: 36 }}>🎉 Mission Complete!</h1>
+        <h2 style={{ fontSize: 22, marginBottom: 20 }}>You caught the thief 👮‍♂️</h2>
         <button
-          onClick={() => {
-            setShowWelcome(false);
-            handleRetry();
-          }}
+          onClick={handleRetry}
           style={{
             background: "#fff",
             color: "#333",
-            padding: "12px 28px",
-            fontSize: 18,
-            borderRadius: 10,
+            padding: "10px 22px",
+            fontSize: 16,
+            borderRadius: 8,
             border: "none",
             cursor: "pointer",
             fontWeight: "bold",
@@ -203,22 +184,19 @@ export default function ThiefCatchScene() {
     );
   }
 
-  // 🎮 Game view
+  // ✅ Game scene
   return (
     <div
       style={{
-        position: "relative",
         width: "100vw",
         height: "100vh",
-        backgroundColor: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(4px)",
         display: "flex",
-        alignItems: "center",
         justifyContent: "center",
+        alignItems: "center",
+        background: "linear-gradient(135deg, #2196f3, #4caf50)",
       }}
     >
       <div
-        ref={stageRef}
         style={{
           position: "relative",
           width: STAGE_WIDTH,
@@ -227,101 +205,31 @@ export default function ThiefCatchScene() {
           border: "3px solid #333",
           borderRadius: 12,
           overflow: "hidden",
-          boxShadow: "0 0 20px rgba(0,0,0,0.6)",
         }}
       >
         {/* 🏦 Bank */}
-        <div
-          style={{
-            position: "absolute",
-            top: bank.y,
-            left: bank.x,
-            width: 60,
-            height: 40,
-            backgroundColor: "#FFD700",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: "bold",
-          }}
-        >
-          🏦 Bank
-        </div>
+        <div style={{ position: "absolute", top: bank.y, left: bank.x, fontSize: 28 }}>🏦</div>
 
         {/* 🏠 Home */}
-        <div
-          style={{
-            position: "absolute",
-            top: thiefHome.y,
-            left: thiefHome.x,
-            width: 60,
-            height: 40,
-            backgroundColor: "#8B0000",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: "bold",
-          }}
-        >
-          🏠 Home
-        </div>
+        <div style={{ position: "absolute", top: thiefHome.y, left: thiefHome.x, fontSize: 28 }}>🏠</div>
 
         {/* 👮‍♂️ Police */}
-        <div
-          style={{
-            position: "absolute",
-            top: policePos.y - 25,
-            left: policePos.x - 25,
-            width: 100,
-            height: 100,
-            backgroundColor: "#1E90FF",
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontSize: 30,
-            fontWeight: "bold",
-          }}
-        >
-          👮‍♂️
-        </div>
+        <div style={{ position: "absolute", top: policePos.y, left: policePos.x, fontSize: 48 }}>👮‍♂️</div>
 
         {/* 🕵️‍♂️ Thief */}
         <div
           style={{
             position: "absolute",
-            top: thiefPos.y + (kickEffect ? -30 : 0),
+            top: thiefPos.y + (kickEffect ? -20 : 0),
             left: thiefPos.x + (kickEffect ? 20 : 0),
             fontSize: 36,
-            zIndex: 10,
-            transition: kickEffect ? "all 0.3s ease" : "none",
+            transition: kickEffect ? "all 0.2s ease" : "none",
           }}
         >
           {!verified ? "🕵️‍♂️" : "💀"}
         </div>
 
-        {/* 🌟 Stars moving with thief */}
-        {stars.map((s) => (
-          <div
-            key={s.id}
-            style={{
-              position: "absolute",
-              left: s.x || thiefPos.x + s.offsetX,
-              top: s.y || thiefPos.y + s.offsetY,
-              opacity: s.life,
-              fontSize: s.size,
-              transition: "all 0.1s linear",
-            }}
-          >
-            🌟
-          </div>
-        ))}
-
-        {/* 🪃 Stick */}
+        {/* 🪃 Boomerang */}
         {arrowPos && (
           <div
             style={{
@@ -341,20 +249,18 @@ export default function ThiefCatchScene() {
           onPointerDown={handlePointerDown}
           style={{
             position: "absolute",
-            left: reticlePos.x - 15,
-            top: reticlePos.y - 15,
-            width: 30,
-            height: 30,
+            left: reticlePos.x - 20,
+            top: reticlePos.y - 20,
+            width: 40,
+            height: 40,
             border: "2px solid red",
             borderRadius: "50%",
-            transform: `rotate(${reticleAngle}deg)`,
-            transition: "transform 0.1s linear",
             cursor: "grab",
           }}
         ></div>
 
-        {/* 🪃 Throw Button */}
-        {!verified && !failed && (
+        {/* Throw Button */}
+        {!verified && (
           <button
             onClick={handleShoot}
             style={{
@@ -377,52 +283,18 @@ export default function ThiefCatchScene() {
         <div
           style={{
             position: "absolute",
-            bottom: 2,
+            bottom: 4,
             left: "50%",
             transform: "translateX(-50%)",
-            backgroundColor: "white",
+            backgroundColor: "rgba(255,255,255,0.3)",
             padding: "6px 14px",
             borderRadius: 6,
             fontWeight: "bold",
             fontSize: 14,
           }}
         >
-          {message} (Round: {tripCount + 1}/3)
+          {message} (Trip: {tripCount}/{totalRounds * 2})
         </div>
-
-        {/* ❌ FAIL */}
-        {failed && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.6)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
-              fontSize: 22,
-              fontWeight: "bold",
-            }}
-          >
-            <div style={{ marginBottom: 20, fontSize: 28 }}>❌ Failed to Verify!</div>
-            <button
-              onClick={handleRetry}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#f44336",
-                border: "none",
-                borderRadius: 8,
-                color: "white",
-                fontSize: 18,
-                cursor: "pointer",
-              }}
-            >
-              🔁 Retry
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
