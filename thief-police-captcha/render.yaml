@@ -9,4 +9,4 @@ services:
     staticPublishPath: ./thief-police-captcha/dist
     envVars:
       - key: NODE_VERSION
-        value: 18.20.2
+        value: 20.19.0
