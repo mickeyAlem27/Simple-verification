@@ -1,16 +1,8 @@
-builds:
-  - name: thief-police-captcha
-    env: node
-    nodeVersion: 20.19.0
-    buildCommand: |
-      npm install
-      npm run build
-    staticPublishPath: ./dist
-
 services:
   - type: web
     name: thief-police-captcha
     env: static
+    buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION
