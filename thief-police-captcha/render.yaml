@@ -6,6 +6,7 @@ services:
       cd thief-police-captcha
       npm install
       npm run build
+    startCommand: npm run preview -- --host
     staticPublishPath: ./thief-police-captcha/dist
     envVars:
       - key: NODE_VERSION
