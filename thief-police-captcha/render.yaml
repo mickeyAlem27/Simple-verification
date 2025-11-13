@@ -3,7 +3,6 @@ services:
     name: thief-police-captcha
     env: static
     buildCommand: |
-      cd thief-police-captcha
       npm install
       npm run build
-    staticPublishPath: ./thief-police-captcha/dist
+    staticPublishPath: ./dist
