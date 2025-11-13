@@ -17,24 +17,29 @@ export default function ThiefCatchScene({ onVerify }) {
   const [verified, setVerified] = useState(false);
   const [arrowPos, setArrowPos] = useState(null);
   const [message, setMessage] = useState("🎯 Drag the target and throw the stick!");
-  const [reticlePos, setReticlePos] = useState({ x: bank.x + 30, y: bank.y + 20 });
+  const [reticlePos, setReticlePos] = useState({
+  x: bank.x + 90, // keep near bank horizontally
+  y: bank.y + (thiefHome.y - bank.y) * 0.55, // 30% down from bank towards home
+});
   const [tripCount, setTripCount] = useState(0);
   const [kickEffect, setKickEffect] = useState(false);
   const [falling, setFalling] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [reticleAngle, setReticleAngle] = useState(0);
+  const [dragging, setDragging] = useState(false);
 
   const forwardRef = useRef(true);
   const pauseRef = useRef(false);
   const animationRefs = useRef({ arrow: null, thief: null });
 
   // Reticle rotation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setReticleAngle((p) => (p + 3) % 360);
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
+useEffect(() => {
+  const interval = setInterval(() => {
+    if (!dragging) setReticleAngle((p) => (p + 1) % 360); // slower, smoother
+  }, 50);
+  return () => clearInterval(interval);
+}, [dragging]);
+
 
   // Thief movement
   useEffect(() => {
@@ -92,16 +97,14 @@ export default function ThiefCatchScene({ onVerify }) {
     const duration = 500; // faster
     const startTime = performance.now();
 
-    const reticleRadius = 48
-    ; // wider for easier hit
+    const reticleRadius = 48; // wider for easier hit
 
     const animate = (time) => {
       const progress = Math.min(1, (time - startTime) / duration);
       const x = startX + (targetX - startX) * progress;
       const y = startY + (targetY - startY) * progress;
-      setArrowPos({ x, y }); // stick stays visible
+      setArrowPos({ x, y });
 
-      // collision detection
       const dx = thiefPos.x - reticlePos.x;
       const dy = thiefPos.y - reticlePos.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -109,11 +112,10 @@ export default function ThiefCatchScene({ onVerify }) {
       if (distance <= reticleRadius && !verified) {
         setVerified(true);
         setKickEffect(true);
-        setFalling(true); // start falling animation
+        setFalling(true);
         setMessage("💥 Boom! Thief kicked!");
         cancelAnimationFrame(animationRefs.current.arrow);
 
-        // animate fall
         let fallPos = { ...thiefPos };
         const fallDuration = 600;
         const fallStart = performance.now();
@@ -145,22 +147,31 @@ export default function ThiefCatchScene({ onVerify }) {
     animationRefs.current.arrow = requestAnimationFrame(animate);
   };
 
-  // drag reticle
-  const handlePointerDown = (e) => {
-    e.preventDefault();
-    const move = (ev) => {
-      const rect = e.target.closest("div").getBoundingClientRect();
-      const x = Math.max(20, Math.min(STAGE_WIDTH - 20, ev.clientX - rect.left));
-      const y = Math.max(20, Math.min(STAGE_HEIGHT - 20, ev.clientY - rect.top));
-      setReticlePos({ x, y });
-    };
-    const up = () => {
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", up);
-    };
-    document.addEventListener("pointermove", move);
-    document.addEventListener("pointerup", up);
+  // Drag reticle
+  const [isDragging, setIsDragging] = useState(false);
+
+const handlePointerDown = (e) => {
+  e.preventDefault();
+  setIsDragging(true);
+
+  const move = (ev) => {
+    if (!isDragging) return;
+    const rect = e.target.closest("div").getBoundingClientRect();
+    const x = Math.max(20, Math.min(STAGE_WIDTH - 20, ev.clientX - rect.left));
+    const y = Math.max(20, Math.min(STAGE_HEIGHT - 20, ev.clientY - rect.top));
+    setReticlePos({ x, y });
   };
+
+  const up = () => {
+    setIsDragging(false);
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", up);
+  };
+
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", up);
+};
+
 
   const handleRetry = () => {
     setVerified(false);
@@ -323,22 +334,46 @@ export default function ThiefCatchScene({ onVerify }) {
           </div>
         )}
 
-        {/* Reticle */}
-        <div
-          onPointerDown={handlePointerDown}
-          style={{
-            position: "absolute",
-            left: reticlePos.x - 20,
-            top: reticlePos.y - 20,
-            width: 40,
-            height: 40,
-            border: "2px solid red",
-            borderRadius: "50%",
-            transform: `rotate(${reticleAngle}deg)`,
-            transition: "transform 0.1s linear",
-            cursor: "grab",
-          }}
-        ></div>
+ {/* Reticle */}
+<div
+  onPointerDown={(e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origX = reticlePos.x;
+    const origY = reticlePos.y;
+
+    const move = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const newX = Math.max(20, Math.min(STAGE_WIDTH - 20, origX + dx));
+      const newY = Math.max(20, Math.min(STAGE_HEIGHT - 20, origY + dy));
+      setReticlePos({ x: newX, y: newY });
+    };
+
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+    };
+
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  }}
+  style={{
+    position: "absolute",
+    left: reticlePos.x - 20,
+    top: reticlePos.y - 20,
+    width: 40,
+    height: 40,
+    border: "2px solid red",
+    borderRadius: "50%",
+    cursor: "grab",
+    transition: "none", // no wobble
+  }}
+></div>
+
+
+
 
         {/* Throw button */}
         {!verified && (
