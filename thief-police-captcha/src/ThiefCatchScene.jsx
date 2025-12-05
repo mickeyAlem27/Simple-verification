@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 
-export default function ThiefCatchScene({ onVerify }) {
-  const STAGE_WIDTH = 600;
-  const STAGE_HEIGHT = 400;
+const LEVEL_ID = 1;
+const LEVEL_SCORE = 120;
 
-  const policePos = { x: STAGE_WIDTH - 100, y: STAGE_HEIGHT / 2 - 50 };
-  const thiefHome = { x: 50, y: STAGE_HEIGHT - 60 };
-  const bank = { x: 50, y: 20 };
+export default function ThiefCatchScene({
+  onVerify,
+  autoAdvanceOnSuccess = false,
+  autoAdvanceOnFail = false,
+}) {
+  const STAGE_WIDTH = 720; // Match new standard
+  const STAGE_HEIGHT = 480; // Match new standard
+
+  const policePos = { x: STAGE_WIDTH - 120, y: STAGE_HEIGHT / 2 - 50 };
+  const thiefHome = { x: 60, y: STAGE_HEIGHT - 80 };
+  const bank = { x: 60, y: 40 };
+  const policeStation = { x: policePos.x - 60, y: policePos.y + 40 };
 
   const totalRounds = 2;
   const tripTime = 4000;
@@ -18,399 +26,258 @@ export default function ThiefCatchScene({ onVerify }) {
   const [arrowPos, setArrowPos] = useState(null);
   const [message, setMessage] = useState("🎯 Drag the target and throw the stick!");
   const [reticlePos, setReticlePos] = useState({
-  x: bank.x + 90, // keep near bank horizontally
-  y: bank.y + (thiefHome.y - bank.y) * 0.55, // 30% down from bank towards home
-});
+    x: bank.x + 90,
+    y: bank.y + (thiefHome.y - bank.y) * 0.55,
+  });
   const [tripCount, setTripCount] = useState(0);
   const [kickEffect, setKickEffect] = useState(false);
   const [falling, setFalling] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
   const [reticleAngle, setReticleAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [evidence, setEvidence] = useState([]);
+  const sessionId = useRef(crypto.randomUUID());
 
   const forwardRef = useRef(true);
   const pauseRef = useRef(false);
   const animationRefs = useRef({ arrow: null, thief: null });
+  const onVerifyRef = useRef(onVerify);
+  const failedRef = useRef(false);
+
+  // Keep onVerify ref updated
+  useEffect(() => {
+    onVerifyRef.current = onVerify;
+  }, [onVerify]);
 
   // Reticle rotation
-useEffect(() => {
-  const interval = setInterval(() => {
-    if (!dragging) setReticleAngle((p) => (p + 1) % 360); // slower, smoother
-  }, 50);
-  return () => clearInterval(interval);
-}, [dragging]);
-
-
-  // Thief movement
   useEffect(() => {
-    if (verified || showWelcome || falling) return;
+    const interval = setInterval(() => {
+      if (!dragging) setReticleAngle((p) => (p + 1) % 360);
+    }, 50);
+    return () => clearInterval(interval);
+  }, [dragging]);
 
-    let frame;
-    const move = () => {
-      setThiefPos((pos) => {
-        if (pauseRef.current) return pos;
-        const target = forwardRef.current ? bank : thiefHome;
-        const dy = target.y - pos.y;
+  // Thief Movement
+  useEffect(() => {
+    let lastTime = performance.now();
+    const moveThief = (time) => {
+      if (verified || pauseRef.current) return;
+      const delta = time - lastTime;
+      lastTime = time;
 
-        if (Math.abs(dy) < speed) {
-          const nextTrip = tripCount + 1;
-          pauseRef.current = true;
-
-          setTimeout(() => {
-            if (nextTrip >= totalRounds * 2) {
-              if (!verified) {
-                setMessage("🚨 Mission Failed! The thief escaped!");
-                if (onVerify) onVerify(false);
-                setShowWelcome(true);
-              }
-            } else {
-              setTripCount(nextTrip);
-              forwardRef.current = !forwardRef.current;
+      setThiefPos((prev) => {
+        let newY = prev.y;
+        if (forwardRef.current) {
+          // Home -> Bank (Up)
+          newY -= speed * (delta / 16.6);
+          if (newY <= bank.y) {
+            newY = bank.y;
+            forwardRef.current = false;
+            pauseRef.current = true;
+            setTimeout(() => {
               pauseRef.current = false;
-            }
-          }, 800);
-
-          return { ...pos, y: target.y };
+              animationRefs.current.thief = requestAnimationFrame(moveThief);
+            }, 1000);
+            return { x: prev.x, y: newY };
+          }
+        } else {
+          // Bank -> Home (Down)
+          newY += speed * (delta / 16.6);
+          if (newY >= thiefHome.y) {
+            newY = thiefHome.y;
+            forwardRef.current = true;
+            setTripCount((c) => c + 1);
+            pauseRef.current = true;
+            setTimeout(() => {
+              pauseRef.current = false;
+              animationRefs.current.thief = requestAnimationFrame(moveThief);
+            }, 1000);
+            return { x: prev.x, y: newY };
+          }
         }
-
-        const moveY = dy > 0 ? speed : -speed;
-        const offsetX = Math.sin(Date.now() * 0.006) * 10;
-        return { x: thiefHome.x + offsetX, y: pos.y + moveY };
+        return { x: prev.x, y: newY };
       });
 
-      frame = requestAnimationFrame(move);
+      if (!pauseRef.current) {
+        animationRefs.current.thief = requestAnimationFrame(moveThief);
+      }
     };
+    animationRefs.current.thief = requestAnimationFrame(moveThief);
+    return () => cancelAnimationFrame(animationRefs.current.thief);
+  }, [verified, speed]);
 
-    frame = requestAnimationFrame(move);
-    animationRefs.current.thief = frame;
-    return () => cancelAnimationFrame(frame);
-  }, [verified, showWelcome, tripCount, speed, falling]);
+  // Fail condition
+  useEffect(() => {
+    if (tripCount >= totalRounds && !verified && !failedRef.current) {
+      failedRef.current = true;
+      onVerifyRef.current?.({ success: false, level: LEVEL_ID, reason: "escaped" });
+    }
+  }, [tripCount, verified]); // Removed onVerify from deps
 
-  // Throw stick
-  const handleShoot = () => {
+  const handleThrow = () => {
     if (verified || arrowPos) return;
 
-    const startX = policePos.x;
-    const startY = policePos.y;
-    const targetX = reticlePos.x;
-    const targetY = reticlePos.y;
-    const duration = 500; // faster
+    const start = { x: policePos.x, y: policePos.y + 20 };
+    const end = { ...reticlePos };
+    const duration = 600;
     const startTime = performance.now();
 
-    const reticleRadius = 48; // wider for easier hit
-
-    const animate = (time) => {
+    const animateArrow = (time) => {
       const progress = Math.min(1, (time - startTime) / duration);
-      const x = startX + (targetX - startX) * progress;
-      const y = startY + (targetY - startY) * progress;
-      setArrowPos({ x, y });
+      const currentX = start.x + (end.x - start.x) * progress;
+      const currentY = start.y + (end.y - start.y) * progress;
 
-      const dx = thiefPos.x - reticlePos.x;
-      const dy = thiefPos.y - reticlePos.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+      // Parabola height
+      const arcHeight = 100 * Math.sin(progress * Math.PI);
+      setArrowPos({ x: currentX, y: currentY - arcHeight });
 
-      if (distance <= reticleRadius && !verified) {
-        setVerified(true);
-        setKickEffect(true);
-        setFalling(true);
-        setMessage("💥 Boom! Thief kicked!");
-        cancelAnimationFrame(animationRefs.current.arrow);
-
-        let fallPos = { ...thiefPos };
-        const fallDuration = 600;
-        const fallStart = performance.now();
-        const fallAnimate = (time) => {
-          const t = Math.min(1, (time - fallStart) / fallDuration);
-          fallPos = { ...fallPos, y: thiefPos.y + t * 80, x: thiefPos.x + t * 20, rotation: t * 180 };
-          setThiefPos(fallPos);
-
-          if (t < 1) requestAnimationFrame(fallAnimate);
-          else {
-            setKickEffect(false);
-            setFalling(false);
-            setShowWelcome(true);
-            if (onVerify) onVerify(true);
-          }
-        };
-        requestAnimationFrame(fallAnimate);
-        return;
-      }
-
-      if (progress < 1 && !verified) {
-        animationRefs.current.arrow = requestAnimationFrame(animate);
+      if (progress < 1) {
+        animationRefs.current.arrow = requestAnimationFrame(animateArrow);
       } else {
-        if (!verified) setMessage("❌ Missed! Try again!");
-        setTimeout(() => setArrowPos(null), 500);
+        checkHit(end);
+        setTimeout(() => setArrowPos(null), 200);
       }
     };
-
-    animationRefs.current.arrow = requestAnimationFrame(animate);
+    animationRefs.current.arrow = requestAnimationFrame(animateArrow);
   };
 
-  // Drag reticle
-  const [isDragging, setIsDragging] = useState(false);
+  const checkHit = (impactPos) => {
+    const dx = impactPos.x - thiefPos.x;
+    const dy = impactPos.y - thiefPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
-const handlePointerDown = (e) => {
-  e.preventDefault();
-  setIsDragging(true);
+    if (dist < 50) {
+      setVerified(true);
+      setKickEffect(true);
+      setFalling(true);
+      setMessage("💥 GOT HIM!");
 
-  const move = (ev) => {
-    if (!isDragging) return;
-    const rect = e.target.closest("div").getBoundingClientRect();
-    const x = Math.max(20, Math.min(STAGE_WIDTH - 20, ev.clientX - rect.left));
-    const y = Math.max(20, Math.min(STAGE_HEIGHT - 20, ev.clientY - rect.top));
-    setReticlePos({ x, y });
+      setTimeout(() => {
+        onVerify?.({ success: true, level: LEVEL_ID, scoreAward: LEVEL_SCORE });
+      }, 1000);
+    } else {
+      setMessage("❌ Missed! Try again!");
+    }
   };
 
-  const up = () => {
-    setIsDragging(false);
-    document.removeEventListener("pointermove", move);
-    document.removeEventListener("pointerup", up);
-  };
-
-  document.addEventListener("pointermove", move);
-  document.addEventListener("pointerup", up);
-};
-
-
-  const handleRetry = () => {
-    setVerified(false);
-    setTripCount(0);
-    setThiefPos({ ...thiefHome });
-    setMessage("🎯 Drag the target and throw the stick!");
-    setArrowPos(null);
-    setShowWelcome(false);
-    forwardRef.current = true;
-    pauseRef.current = false;
-    setReticlePos({ x: bank.x + 30, y: bank.y + 20 });
-  };
-
-  if (showWelcome) {
-    return (
-      <div
-        style={{
-          width: "100vw",
-          height: "100vh",
-          background: "linear-gradient(135deg, #2196f3, #4caf50)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontFamily: "Poppins, sans-serif",
-        }}
-      >
-        <h1 style={{ fontSize: 36 }}>{verified ? "🎉 Mission Complete!" : "🚨 Mission Failed!"}</h1>
-        <h2 style={{ fontSize: 22, marginBottom: 20 }}>
-          {verified ? "You caught the thief!" : "The thief escaped! Verification failed."}
-        </h2>
-        <button
-          onClick={handleRetry}
-          style={{
-            background: "#fff",
-            color: "#333",
-            padding: "10px 22px",
-            fontSize: 16,
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          🔁 Play Again
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "linear-gradient(135deg, #2196f3, #4caf50)",
-      }}
-    >
-      <div
-        style={{
-          position: "relative",
-          width: STAGE_WIDTH,
-          height: STAGE_HEIGHT,
-          background: "linear-gradient(to bottom, #b3e5fc, #a5d6a7)",
-          border: "3px solid #333",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
-      >
-        {/* Bank */}
-        <div
-          style={{
-            position: "absolute",
-            top: bank.y,
-            left: bank.x,
-            width: 60,
-            height: 40,
-            backgroundColor: "#FFD700",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: "bold",
-          }}
-        >
-          🏦
-        </div>
-
-        {/* Home */}
-        <div
-          style={{
-            position: "absolute",
-            top: thiefHome.y,
-            left: thiefHome.x,
-            width: 60,
-            height: 40,
-            backgroundColor: "#8B0000",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: "bold",
-          }}
-        >
-          🏠
-        </div>
-
-        {/* Police */}
-        <div
-          style={{
-            position: "absolute",
-            top: policePos.y - 25,
-            left: policePos.x - 25,
-            width: 100,
-            height: 100,
-            backgroundColor: "#1E90FF",
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontSize: 30,
-            fontWeight: "bold",
-          }}
-        >
-          👮‍♂️
-        </div>
-
-        {/* Thief */}
-        <div
-          style={{
-            position: "absolute",
-            top: thiefPos.y,
-            left: thiefPos.x,
-            fontSize: 36,
-            transform: falling ? `rotate(${thiefPos.rotation || 0}deg)` : undefined,
-            transition: kickEffect || falling ? "all 0.2s ease" : "none",
-          }}
-        >
-          {!verified ? "🕵️‍♂️" : "💀"}
-        </div>
-
-        {/* Stick */}
-        {arrowPos && (
-          <div
-            style={{
-              position: "absolute",
-              left: arrowPos.x,
-              top: arrowPos.y,
-              fontSize: 28,
-              transform: "rotate(45deg)",
-            }}
-          >
-            🪃
-          </div>
-        )}
-
- {/* Reticle */}
-<div
-  onPointerDown={(e) => {
+  // Drag Logic
+  const handleDragStart = (e) => {
     e.preventDefault();
+    setDragging(true);
     const startX = e.clientX;
     const startY = e.clientY;
-    const origX = reticlePos.x;
-    const origY = reticlePos.y;
+    const startReticle = { ...reticlePos };
 
-    const move = (ev) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      const newX = Math.max(20, Math.min(STAGE_WIDTH - 20, origX + dx));
-      const newY = Math.max(20, Math.min(STAGE_HEIGHT - 20, origY + dy));
-      setReticlePos({ x: newX, y: newY });
+    const onMove = (mv) => {
+      const dx = mv.clientX - startX;
+      const dy = mv.clientY - startY;
+      setReticlePos({
+        x: Math.max(0, Math.min(STAGE_WIDTH, startReticle.x + dx)),
+        y: Math.max(0, Math.min(STAGE_HEIGHT, startReticle.y + dy)),
+      });
     };
 
-    const up = () => {
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", up);
+    const onUp = () => {
+      setDragging(false);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
 
-    document.addEventListener("pointermove", move);
-    document.addEventListener("pointerup", up);
-  }}
-  style={{
-    position: "absolute",
-    left: reticlePos.x - 20,
-    top: reticlePos.y - 20,
-    width: 40,
-    height: 40,
-    border: "2px solid red",
-    borderRadius: "50%",
-    cursor: "grab",
-    transition: "none", // no wobble
-  }}
-></div>
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
 
+  return (
+    <div className="game-stage" style={{ background: "linear-gradient(to bottom, #1e293b, #0f172a)" }}>
+      {/* City Background Elements */}
+      <div style={{ position: "absolute", bottom: 0, width: "100%", height: "40%", background: "#334155", clipPath: "polygon(0 20%, 20% 0, 40% 20%, 60% 5%, 80% 25%, 100% 10%, 100% 100%, 0 100%)", opacity: 0.5 }}></div>
 
+      {/* Bank */}
+      <div style={{ position: "absolute", top: bank.y, left: bank.x, textAlign: "center" }}>
+        <div style={{ fontSize: 40 }}>🏦</div>
+        <div style={{ color: "#fbbf24", fontWeight: "bold", fontSize: 12 }}>CITY BANK</div>
+      </div>
 
+      {/* Thief Home */}
+      <div style={{ position: "absolute", top: thiefHome.y, left: thiefHome.x, textAlign: "center" }}>
+        <div style={{ fontSize: 40 }}>🏠</div>
+        <div style={{ color: "#f87171", fontWeight: "bold", fontSize: 12 }}>HIDEOUT</div>
+      </div>
 
-        {/* Throw button */}
-        {!verified && (
-          <button
-            onClick={handleShoot}
-            style={{
-              position: "absolute",
-              bottom: 10,
-              right: 10,
-              padding: "8px 16px",
-              backgroundColor: "#1565C0",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
-            Throw Stick 🪃
-          </button>
-        )}
+      {/* Police Station */}
+      <div style={{ position: "absolute", top: policeStation.y, left: policeStation.x, textAlign: "center" }}>
+        <div style={{ fontSize: 40 }}>🚓</div>
+      </div>
 
-        {/* Message */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 4,
-            left: "50%",
-            transform: "translateX(-50%)",
-            backgroundColor: "rgba(255,255,255,0.3)",
-            padding: "6px 14px",
-            borderRadius: 6,
-            fontWeight: "bold",
-            fontSize: 14,
-          }}
-        >
-          {message} (Trip: {tripCount}/{totalRounds * 2})
+      {/* Path */}
+      <svg style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+        <line x1={bank.x + 20} y1={bank.y + 40} x2={thiefHome.x + 20} y2={thiefHome.y} stroke="rgba(255,255,255,0.1)" strokeWidth="4" strokeDasharray="10,10" />
+      </svg>
+
+      {/* Thief */}
+      <div
+        style={{
+          position: "absolute",
+          top: thiefPos.y,
+          left: thiefPos.x,
+          fontSize: 40,
+          transition: falling ? "all 0.5s ease-in" : "none",
+          transform: falling ? "rotate(90deg) scale(0.8)" : "none",
+          filter: kickEffect ? "brightness(2) sepia(1)" : "none",
+        }}
+      >
+        🥷
+      </div>
+
+      {/* Arrow */}
+      {arrowPos && (
+        <div style={{ position: "absolute", top: arrowPos.y, left: arrowPos.x, fontSize: 30, transform: "rotate(-45deg)" }}>
+          🔗
         </div>
+      )}
+
+      {/* Reticle */}
+      <div
+        onPointerDown={handleDragStart}
+        style={{
+          position: "absolute",
+          top: reticlePos.y - 25,
+          left: reticlePos.x - 25,
+          width: 50,
+          height: 50,
+          border: "3px dashed #fbbf24",
+          borderRadius: "50%",
+          cursor: "grab",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transform: `rotate(${reticleAngle}deg)`,
+          boxShadow: "0 0 15px rgba(251, 191, 36, 0.3)",
+        }}
+      >
+        <div style={{ width: 8, height: 8, background: "#fbbf24", borderRadius: "50%" }}></div>
+      </div>
+
+      {/* Controls */}
+      <div style={{ position: "absolute", bottom: 20, right: 20 }}>
+        <button className="game-btn" onClick={handleThrow} disabled={verified || arrowPos}>
+          THROW BATON
+        </button>
+      </div>
+
+      {/* Message Toast */}
+      <div style={{
+        position: "absolute",
+        bottom: 20,
+        left: "50%",
+        transform: "translateX(-50%)",
+        background: "rgba(0,0,0,0.6)",
+        padding: "8px 16px",
+        borderRadius: 20,
+        color: "#fff",
+        fontSize: 14,
+        backdropFilter: "blur(4px)"
+      }}>
+        {message}
       </div>
     </div>
   );

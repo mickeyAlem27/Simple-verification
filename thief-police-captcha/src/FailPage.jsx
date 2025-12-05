@@ -4,33 +4,33 @@ export default function FailPage({ onRetry }) {
   return (
     <div
       style={{
+        textAlign: "center",
+        color: "white",
+        backgroundColor: "#1a1a1a",
         width: "100vw",
         height: "100vh",
-        background: "linear-gradient(135deg, #f44336, #ff9800)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        color: "white",
-        fontFamily: "Poppins, sans-serif",
       }}
     >
-      <h1 style={{ fontSize: 36 }}>❌ Mission Failed!</h1>
-      <h2 style={{ fontSize: 22, marginBottom: 20 }}>The thief escaped! Verification failed.</h2>
+      <h1 style={{ color: "red" }}>❌  Failed!</h1>
+      <p>The thief escaped! Verification failed.</p>
       <button
         onClick={onRetry}
         style={{
-          background: "#fff",
-          color: "#333",
-          padding: "10px 22px",
+          marginTop: 20,
+          padding: "10px 20px",
           fontSize: 16,
           borderRadius: 8,
           border: "none",
           cursor: "pointer",
-          fontWeight: "bold",
+          backgroundColor: "#ff5555",
+          color: "white",
         }}
       >
-        🔁 Try Again
+        Retry
       </button>
     </div>
   );
