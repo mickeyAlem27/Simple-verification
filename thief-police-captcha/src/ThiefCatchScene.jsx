@@ -159,31 +159,56 @@ export default function ThiefCatchScene({
     }
   };
 
-  // Drag Logic
+  // Optimized drag logic for smooth mobile performance
   const handleDragStart = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragging(true);
-    const startX = e.clientX;
-    const startY = e.clientY;
+
+    // Get correct coordinates for both mouse and touch
+    const getCoords = (event) => {
+      if (event.touches && event.touches[0]) {
+        return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      }
+      return { x: event.clientX, y: event.clientY };
+    };
+
+    const startCoords = getCoords(e);
     const startReticle = { ...reticlePos };
+    let rafId = null;
 
     const onMove = (mv) => {
-      const dx = mv.clientX - startX;
-      const dy = mv.clientY - startY;
-      setReticlePos({
-        x: Math.max(0, Math.min(STAGE_WIDTH, startReticle.x + dx)),
-        y: Math.max(0, Math.min(STAGE_HEIGHT, startReticle.y + dy)),
+      mv.preventDefault();
+
+      // Cancel previous animation frame
+      if (rafId) cancelAnimationFrame(rafId);
+
+      // Use requestAnimationFrame for smooth 60fps updates
+      rafId = requestAnimationFrame(() => {
+        const moveCoords = getCoords(mv);
+        const dx = moveCoords.x - startCoords.x;
+        const dy = moveCoords.y - startCoords.y;
+
+        setReticlePos({
+          x: Math.max(0, Math.min(STAGE_WIDTH, startReticle.x + dx)),
+          y: Math.max(0, Math.min(STAGE_HEIGHT, startReticle.y + dy)),
+        });
       });
     };
 
     const onUp = () => {
+      if (rafId) cancelAnimationFrame(rafId);
       setDragging(false);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
     };
 
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    document.addEventListener("pointermove", onMove, { passive: false });
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onUp);
   };
 
   return (
