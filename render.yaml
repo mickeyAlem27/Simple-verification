@@ -1,6 +1,6 @@
 services:
   - type: static
-    name: thief-police-captcha
+    name: thief-police-captcha-demo
     env: node
     buildCommand: |
       cd thief-police-captcha
