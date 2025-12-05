@@ -120,15 +120,16 @@ body {
   @media (orientation: landscape) {
     .game-container {
       padding: 0;
-      justify-content: flex-start;
-      padding-top: 5px;
+      justify-content: center;
+      align-items: center;
     }
 
     .game-stage {
-      width: 98vw;
-      height: 95vh;
-      max-width: 98vw;
-      max-height: 95vh;
+      /* Keep original dimensions and scale proportionally */
+      width: 720px;
+      height: 480px;
+      transform-origin: center center;
+      transform: scale(calc(min(98vw / 720, 95vh / 480)));
       border-radius: 8px;
       border: 2px solid #334155;
       touch-action: manipulation;
