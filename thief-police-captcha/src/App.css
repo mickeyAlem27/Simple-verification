@@ -126,11 +126,11 @@ body {
     }
 
     .game-stage {
-      /* Keep original dimensions and scale proportionally */
+      /* Keep original dimensions and scale proportionally - reduced for better fit */
       width: 720px;
       height: 480px;
       transform-origin: center center;
-      transform: scale(calc(min(96vw / 720, 93vh / 480)));
+      transform: scale(calc(min(90vw / 720, 85vh / 480)));
       border-radius: 8px;
       border: 2px solid #334155;
       -webkit-touch-callout: none;
