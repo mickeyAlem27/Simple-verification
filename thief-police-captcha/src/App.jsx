@@ -63,7 +63,7 @@ export default function App({ onSuccess }) {
       if (level === 3) {
         setResult("success");
         setResultMeta({ level, reason: "game_complete" });
-        // Do NOT call onSuccess here to avoid logout; just show success UI
+        if (onSuccess) onSuccess({ score: score + (scoreAward || 0), rank: getRank(score + (scoreAward || 0)) });
       }
 
     } else {
