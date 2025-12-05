@@ -116,28 +116,41 @@ body {
     }
   }
 
-  /* Landscape mode - optimized */
+  /* Landscape mode - optimized to fit screen */
   @media (orientation: landscape) {
+    .game-container {
+      padding: 0;
+      justify-content: flex-start;
+      padding-top: 5px;
+    }
+
     .game-stage {
-      width: 100vw;
-      height: 100vh;
-      border-radius: 0;
-      border: none;
-      touch-action: none;
+      width: 98vw;
+      height: 95vh;
+      max-width: 98vw;
+      max-height: 95vh;
+      border-radius: 8px;
+      border: 2px solid #334155;
+      touch-action: manipulation;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
     }
 
     .game-hud {
-      top: 10px;
-      padding: 6px 12px;
-      gap: 10px;
-      font-size: 12px;
+      top: 8px;
+      padding: 4px 10px;
+      gap: 8px;
+      font-size: 11px;
+      border-radius: 12px;
+    }
+
+    .hud-label {
+      font-size: 9px;
     }
 
     .hud-value {
-      font-size: 14px;
+      font-size: 13px;
     }
   }
 }
@@ -146,7 +159,7 @@ body {
 @media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
   .game-stage {
     width: 90vw;
-    height: 90vh;
+    height: 85vh;
     max-width: 900px;
     max-height: 600px;
   }
