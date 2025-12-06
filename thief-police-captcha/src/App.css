@@ -31,6 +31,8 @@ body {
   inset: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  padding: 20px 10px;
+  box-sizing: border-box;
 }
 
 /* --- HUD (Heads-Up Display) --- */
@@ -146,24 +148,24 @@ body {
   /* Landscape mode - optimized to fit screen with zoom enabled */
   @media (orientation: landscape) {
     .game-container {
-      padding: 0;
-      justify-content: center;
+      padding: 15px 10px;
+      justify-content: flex-start;
       align-items: center;
       overflow: auto;
     }
 
     .game-stage {
-      /* Flexible scaling for landscape - allows zoom */
+      /* Reduced scale to prevent vertical cropping in landscape */
       width: 720px;
       height: 480px;
       transform-origin: center center;
-      transform: scale(calc(min(75vw / 720, 70vh / 480)));
+      transform: scale(calc(min(70vw / 720, 65vh / 480)));
       border-radius: 8px;
       border: 2px solid #334155;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
-      margin: 10px auto;
+      margin: 15px auto;
     }
 
     .game-hud {
@@ -189,7 +191,7 @@ body {
   .normal-mode .game-stage {
     width: 720px;
     height: 480px;
-    transform: scale(calc(min(95vw / 720, 60vh / 480)));
+    transform: scale(calc(min(90vw / 720, 55vh / 480)));
   }
 }
 
@@ -218,7 +220,7 @@ body {
 /* Medium phones (iPhone 12/13, Pixel) - Portrait */
 @media (min-width: 376px) and (max-width: 428px) and (orientation: portrait) {
   .normal-mode .game-stage {
-    transform: scale(calc(min(92vw / 720, 55vh / 480)));
+    transform: scale(calc(min(88vw / 720, 50vh / 480)));
   }
 }
 
@@ -232,7 +234,7 @@ body {
 /* Large phones (iPhone Pro Max, etc) - Portrait */
 @media (min-width: 429px) and (orientation: portrait) {
   .normal-mode .game-stage {
-    transform: scale(calc(min(90vw / 720, 50vh / 480)));
+    transform: scale(calc(min(85vw / 720, 48vh / 480)));
   }
 }
 
