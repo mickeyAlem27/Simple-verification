@@ -13,6 +13,7 @@ export default function App({ onSuccess }) {
   const [resultMeta, setResultMeta] = useState({});
   const [gameKey, setGameKey] = useState(0); // Used to force-reset levels
   const [roundsCleared, setRoundsCleared] = useState(0); // Track rounds for Level 2 Score Attack
+  const [orientationMode, setOrientationMode] = useState('auto'); // 'auto', 'portrait', 'landscape'
 
   const handleRetry = () => {
     // Retry the CURRENT level, don't reset to 1
@@ -141,7 +142,32 @@ export default function App({ onSuccess }) {
   };
 
   return (
-    <div className="game-container">
+    <div className="game-container" data-orientation={orientationMode}>
+      {/* Orientation Toggle Buttons */}
+      <div className="orientation-controls">
+        <button
+          className={`orientation-btn ${orientationMode === 'portrait' ? 'active' : ''}`}
+          onClick={() => setOrientationMode('portrait')}
+          title="Normal View"
+        >
+          📱 Normal
+        </button>
+        <button
+          className={`orientation-btn ${orientationMode === 'landscape' ? 'active' : ''}`}
+          onClick={() => setOrientationMode('landscape')}
+          title="Landscape View"
+        >
+          🔄 Landscape
+        </button>
+        <button
+          className={`orientation-btn ${orientationMode === 'auto' ? 'active' : ''}`}
+          onClick={() => setOrientationMode('auto')}
+          title="Auto Detect"
+        >
+          🔁 Auto
+        </button>
+      </div>
+
       {/* HUD */}
       <div className="game-hud">
         <div className="hud-item">
