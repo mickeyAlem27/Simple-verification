@@ -159,7 +159,7 @@ body {
       width: 720px;
       height: 480px;
       transform-origin: center center;
-      transform: scale(calc(min(70vw / 720, 65vh / 480)));
+      transform: scale(calc(min(65vw / 720, 58vh / 480)));
       border-radius: 8px;
       border: 2px solid #334155;
       -webkit-touch-callout: none;
@@ -198,7 +198,7 @@ body {
 /* iPhone SE and small phones (landscape) */
 @media (max-width: 667px) and (max-height: 375px) and (orientation: landscape) {
   .game-stage {
-    transform: scale(calc(min(70vw / 720, 65vh / 480))) !important;
+    transform: scale(calc(min(65vw / 720, 58vh / 480))) !important;
   }
 
   .game-hud {
@@ -227,7 +227,7 @@ body {
 /* Medium phones - Landscape */
 @media (min-width: 668px) and (max-width: 926px) and (max-height: 428px) and (orientation: landscape) {
   .game-stage {
-    transform: scale(calc(min(72vw / 720, 68vh / 480))) !important;
+    transform: scale(calc(min(67vw / 720, 60vh / 480))) !important;
   }
 }
 
@@ -241,7 +241,7 @@ body {
 /* Large phones - Landscape */
 @media (min-width: 927px) and (orientation: landscape) {
   .game-stage {
-    transform: scale(calc(min(75vw / 720, 70vh / 480))) !important;
+    transform: scale(calc(min(70vw / 720, 62vh / 480))) !important;
   }
 }
 
