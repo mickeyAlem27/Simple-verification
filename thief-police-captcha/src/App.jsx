@@ -2,18 +2,19 @@ import React, { useMemo, useState } from "react";
 import ThiefCatchScene from "./ThiefCatchScene";
 import JungleHuntScene from "./JungleHuntScene";
 import TempleRunScene from "./TempleRunScene";
+import OrientationSelector from "./OrientationSelector";
 import "./App.css";
 
 const TOTAL_LEVELS = 4;
 
 export default function App({ onSuccess }) {
+  const [orientation, setOrientation] = useState(null); // null, 'normal', or 'landscape'
   const [currentLevel, setCurrentLevel] = useState(1);
   const [score, setScore] = useState(0);
   const [result, setResult] = useState(null); // "success", "fail", or null
   const [resultMeta, setResultMeta] = useState({});
   const [gameKey, setGameKey] = useState(0); // Used to force-reset levels
   const [roundsCleared, setRoundsCleared] = useState(0); // Track rounds for Level 2 Score Attack
-  const [orientationMode, setOrientationMode] = useState('auto'); // 'auto', 'portrait', 'landscape'
 
   const handleRetry = () => {
     // Retry the CURRENT level, don't reset to 1
@@ -142,82 +143,63 @@ export default function App({ onSuccess }) {
   };
 
   return (
-    <div className="game-container" data-orientation={orientationMode}>
-      {/* Orientation Toggle Buttons */}
-      <div className="orientation-controls">
-        <button
-          className={`orientation-btn ${orientationMode === 'portrait' ? 'active' : ''}`}
-          onClick={() => setOrientationMode('portrait')}
-          title="Normal View"
-        >
-          📱 Normal
-        </button>
-        <button
-          className={`orientation-btn ${orientationMode === 'landscape' ? 'active' : ''}`}
-          onClick={() => setOrientationMode('landscape')}
-          title="Landscape View"
-        >
-          🔄 Landscape
-        </button>
-        <button
-          className={`orientation-btn ${orientationMode === 'auto' ? 'active' : ''}`}
-          onClick={() => setOrientationMode('auto')}
-          title="Auto Detect"
-        >
-          🔁 Auto
-        </button>
-      </div>
+    <>
+      {/* Show orientation selector if not selected yet */}
+      {!orientation && <OrientationSelector onSelect={setOrientation} />}
 
-      {/* HUD */}
-      <div className="game-hud">
-        <div className="hud-item">
-          <span className="hud-label">Level</span>
-          <span className="hud-value">{currentLevel === 2 && roundsCleared > 0 ? 3 : currentLevel === 3 ? 4 : currentLevel}/{TOTAL_LEVELS}</span>
-        </div>
-        <div className="hud-item">
-          <span className="hud-label">Mission</span>
-          <span className="hud-value">{levelDisplayName}</span>
-        </div>
-        <div className="hud-item">
-          <span className="hud-label">Score</span>
-          <span className="hud-value highlight">{score}</span>
-        </div>
-      </div>
-
-      {renderLevel()}
-
-      {/* ✅ Success Popup (Final) */}
-      {result === "success" && resultMeta.reason === "game_complete" && (
-        <div className="final-overlay">
-          <div className="final-card">
-            <div className="confetti-container">
-              {[...Array(20)].map((_, i) => <div key={i} className="confetti" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 2}s`, backgroundColor: ['#ff0', '#f00', '#0f0', '#00f'][Math.floor(Math.random() * 4)] }}></div>)}
+      {/* Show game only after orientation is selected */}
+      {orientation && (
+        <div className={`game-container ${orientation === 'landscape' ? 'landscape-mode' : 'normal-mode'}`}>
+          {/* HUD */}
+          <div className="game-hud">
+            <div className="hud-item">
+              <span className="hud-label">Level</span>
+              <span className="hud-value">{currentLevel === 2 && roundsCleared > 0 ? 3 : currentLevel === 3 ? 4 : currentLevel}/{TOTAL_LEVELS}</span>
             </div>
-
-            <div className="icon-wrapper">
-              <div className="icon">🏆</div>
+            <div className="hud-item">
+              <span className="hud-label">Mission</span>
+              <span className="hud-value">{levelDisplayName}</span>
             </div>
-
-            <h2 className="title">MISSION ACCOMPLISHED</h2>
-            <p className="subtitle">The streets are safe again.</p>
-
-            <div className="score-card">
-              <div className="score-row">
-                <span>Total Score</span>
-                <span className="score-value">{score}</span>
-              </div>
-              <div className="rank-row">
-                <span>Detective Rank</span>
-                <span className="rank-value">{getRank(score)}</span>
-              </div>
+            <div className="hud-item">
+              <span className="hud-label">Score</span>
+              <span className="hud-value highlight">{score}</span>
             </div>
-
-            <button className="play-again-btn" onClick={() => window.location.reload()}>
-              Play Again
-            </button>
           </div>
 
-          <style>{`
+          {renderLevel()}
+
+          {/* ✅ Success Popup (Final) */}
+          {result === "success" && resultMeta.reason === "game_complete" && (
+            <div className="final-overlay">
+              <div className="final-card">
+                <div className="confetti-container">
+                  {[...Array(20)].map((_, i) => <div key={i} className="confetti" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 2}s`, backgroundColor: ['#ff0', '#f00', '#0f0', '#00f'][Math.floor(Math.random() * 4)] }}></div>)}
+                </div>
+
+                <div className="icon-wrapper">
+                  <div className="icon">🏆</div>
+                </div>
+
+                <h2 className="title">MISSION ACCOMPLISHED</h2>
+                <p className="subtitle">The streets are safe again.</p>
+
+                <div className="score-card">
+                  <div className="score-row">
+                    <span>Total Score</span>
+                    <span className="score-value">{score}</span>
+                  </div>
+                  <div className="rank-row">
+                    <span>Detective Rank</span>
+                    <span className="rank-value">{getRank(score)}</span>
+                  </div>
+                </div>
+
+                <button className="play-again-btn" onClick={() => window.location.reload()}>
+                  Play Again
+                </button>
+              </div>
+
+              <style>{`
             .final-overlay {
                 position: fixed;
                 inset: 0;
@@ -347,37 +329,39 @@ export default function App({ onSuccess }) {
             .confetti:nth-child(odd) { animation-duration: 2.5s; }
             .confetti:nth-child(even) { animation-duration: 3.5s; }
           `}</style>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* ✅ Success Popup (Level 1 & 2) */}
-      {result === "success" && resultMeta.reason !== "game_complete" && (
-        <div className="game-overlay">
-          <div className="overlay-content">
-            <h2 className="overlay-title">Level Complete!</h2>
-            <p className="overlay-message">Target secured. Ready for the next challenge?</p>
-            <button className="game-btn" onClick={() => {
-              setResult(null);
-              setCurrentLevel(prev => prev + 1);
-            }}>
-              Next Level ➡️
-            </button>
-          </div>
-        </div>
-      )}
+          {/* ✅ Success Popup (Level 1 & 2) */}
+          {result === "success" && resultMeta.reason !== "game_complete" && (
+            <div className="game-overlay">
+              <div className="overlay-content">
+                <h2 className="overlay-title">Level Complete!</h2>
+                <p className="overlay-message">Target secured. Ready for the next challenge?</p>
+                <button className="game-btn" onClick={() => {
+                  setResult(null);
+                  setCurrentLevel(prev => prev + 1);
+                }}>
+                  Next Level ➡️
+                </button>
+              </div>
+            </div>
+          )}
 
-      {/* ❌ Fail Popup */}
-      {result === "fail" && (
-        <div className="game-overlay">
-          <div className="overlay-content">
-            <h2 className="overlay-title" style={{ background: "linear-gradient(to right, #ef4444, #f87171)" }}>Mission Failed</h2>
-            <p className="overlay-message">The thief got away...</p>
-            <button className="game-btn" style={{ background: "#ef4444" }} onClick={handleRetry}>
-              Retry Level 🔄
-            </button>
-          </div>
+          {/* ❌ Fail Popup */}
+          {result === "fail" && (
+            <div className="game-overlay">
+              <div className="overlay-content">
+                <h2 className="overlay-title" style={{ background: "linear-gradient(to right, #ef4444, #f87171)" }}>Mission Failed</h2>
+                <p className="overlay-message">The thief got away...</p>
+                <button className="game-btn" style={{ background: "#ef4444" }} onClick={handleRetry}>
+                  Retry Level 🔄
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 }

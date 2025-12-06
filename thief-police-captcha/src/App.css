@@ -31,73 +31,6 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Orientation Controls */
-.orientation-controls {
-  position: absolute;
-  top: 70px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 8px 16px;
-  border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  z-index: 99;
-  animation: slideDown 0.5s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-.orientation-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #cbd5e1;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-family: 'Poppins', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.orientation-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.orientation-btn.active {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border-color: #3b82f6;
-  color: white;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.5);
-  transform: scale(1.05);
-}
-
-.orientation-btn:active {
-  transform: scale(0.95);
-}
-
 /* --- HUD (Heads-Up Display) --- */
 .game-hud {
   position: absolute;
@@ -197,7 +130,7 @@ body {
       width: 720px;
       height: 480px;
       transform-origin: center center;
-      transform: scale(calc(min(90vw / 720, 85vh / 480)));
+      transform: scale(calc(min(85vw / 720, 80vh / 480)));
       border-radius: 8px;
       border: 2px solid #334155;
       -webkit-touch-callout: none;
