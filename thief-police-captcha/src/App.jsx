@@ -4,6 +4,7 @@ import JungleHuntScene from "./JungleHuntScene";
 import TempleRunScene from "./TempleRunScene";
 import OrientationSelector from "./OrientationSelector";
 import "./App.css";
+import "./GameContent.css";
 
 const TOTAL_LEVELS = 4;
 

@@ -1,0 +1,175 @@
+/* Responsive styles for game level content */
+
+/* Ensure all game elements scale proportionally */
+.game-stage * {
+    box-sizing: border-box;
+}
+
+/* Make font sizes responsive */
+@media (max-width: 768px) {
+    /* Portrait mode - smaller fonts */
+    @media (orientation: portrait) {
+        .game-stage {
+            font-size: 14px;
+        }
+
+        /* Scale down emojis and icons */
+        .game-stage div[style*="fontSize"] {
+            font-size: inherit !important;
+        }
+    }
+
+    /* Landscape mode - compact fonts */
+    @media (orientation: landscape) {
+        .game-stage {
+            font-size: 12px;
+        }
+    }
+}
+
+/* iPhone SE and small phones */
+@media (max-width: 375px) {
+    .game-stage {
+        font-size: 11px;
+    }
+
+    /* Ensure buttons and interactive elements are touchable */
+    .game-stage button {
+        min-height: 36px;
+        min-width: 80px;
+        font-size: 12px !important;
+    }
+}
+
+/* Small phone landscape */
+@media (max-width: 667px) and (max-height: 375px) and (orientation: landscape) {
+    .game-stage {
+        font-size: 10px;
+    }
+
+    .game-stage button {
+        min-height: 30px;
+        min-width: 70px;
+        font-size: 10px !important;
+    }
+}
+
+/* Ensure overlays are responsive */
+.game-overlay {
+    padding: 10px;
+}
+
+.overlay-content {
+    max-width: 90%;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .overlay-content {
+        padding: 15px;
+    }
+
+    .overlay-title {
+        font-size: 24px !important;
+    }
+
+    .overlay-message {
+        font-size: 14px !important;
+    }
+
+    .overlay-icon {
+        font-size: 48px !important;
+    }
+}
+
+@media (max-width: 375px) {
+    .overlay-content {
+        padding: 12px;
+    }
+
+    .overlay-title {
+        font-size: 20px !important;
+    }
+
+    .overlay-message {
+        font-size: 12px !important;
+    }
+
+    .overlay-icon {
+        font-size: 40px !important;
+    }
+}
+
+/* Final score screen responsive */
+.final-overlay {
+    padding: 10px;
+}
+
+.final-card {
+    max-width: 90%;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .final-card {
+        padding: 15px;
+    }
+
+    .final-card .title {
+        font-size: 24px !important;
+    }
+
+    .final-card .subtitle {
+        font-size: 14px !important;
+    }
+
+    .score-value,
+    .rank-value {
+        font-size: 20px !important;
+    }
+}
+
+@media (max-width: 375px) {
+    .final-card {
+        padding: 12px;
+    }
+
+    .final-card .title {
+        font-size: 20px !important;
+    }
+
+    .final-card .subtitle {
+        font-size: 12px !important;
+    }
+
+    .score-value,
+    .rank-value {
+        font-size: 18px !important;
+    }
+}
+
+/* Ensure game buttons are responsive */
+.game-btn {
+    font-size: 14px;
+    padding: 10px 20px;
+}
+
+@media (max-width: 768px) {
+    .game-btn {
+        font-size: 13px;
+        padding: 8px 16px;
+    }
+}
+
+@media (max-width: 375px) {
+    .game-btn {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+}
+
+/* Make sure all positioned elements stay within bounds */
+.game-stage>div {
+    max-width: 100%;
+    max-height: 100%;
+}
