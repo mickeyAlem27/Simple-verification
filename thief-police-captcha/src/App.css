@@ -136,38 +136,7 @@ body {
     }
   }
 
-  /* Portrait mode - show rotation message */
-  @media (orientation: portrait) {
-    .game-container::before {
-      content: '📱 Rotate to Landscape\A for Best Experience';
-      white-space: pre;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.98);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      color: white;
-      font-size: 24px;
-      font-weight: 600;
-      padding: 20px;
-      text-align: center;
-      animation: pulse 2s ease-in-out infinite;
-    }
 
-    @keyframes pulse {
-
-      0%,
-      100% {
-        opacity: 1;
-      }
-
-      50% {
-        opacity: 0.7;
-      }
-    }
-  }
 
   /* Landscape mode - optimized to fit screen */
   @media (orientation: landscape) {
@@ -182,7 +151,7 @@ body {
       width: 720px;
       height: 480px;
       transform-origin: center center;
-      transform: scale(calc(min(85vw / 720, 80vh / 480)));
+      transform: scale(calc(min(75vw / 720, 70vh / 480)));
       border-radius: 8px;
       border: 2px solid #334155;
       -webkit-touch-callout: none;
