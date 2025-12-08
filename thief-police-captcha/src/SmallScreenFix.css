@@ -1,0 +1,72 @@
+/* Prevent over-shrinking on very small screens */
+
+/* For screens smaller than 710px, ensure minimum readable size */
+@media (max-width: 710px) {
+
+    /* Increase minimum font sizes */
+    .game-stage {
+        font-size: 14px !important;
+    }
+
+    /* Icons should not be too small */
+    .game-stage>div>div:first-child {
+        font-size: 26px !important;
+    }
+
+    /* Labels readable */
+    .game-stage>div>div:last-child {
+        font-size: 9px !important;
+    }
+
+    /* Thief character */
+    .game-stage>div[style*="transition"] {
+        font-size: 26px !important;
+    }
+
+    /* Arrow/projectile */
+    .game-stage>div[style*="transform: rotate(-45deg)"] {
+        font-size: 20px !important;
+    }
+
+    /* Targeting circle - keep usable size */
+    .game-stage>div[style*="border: 3px dashed"] {
+        width: 45px !important;
+        height: 45px !important;
+        border-width: 2px !important;
+    }
+}
+
+/* Extra small screens (≤600px) */
+@media (max-width: 600px) {
+    .game-stage {
+        font-size: 13px !important;
+    }
+
+    .game-stage>div>div:first-child {
+        font-size: 24px !important;
+    }
+
+    .game-stage>div>div:last-child {
+        font-size: 8px !important;
+    }
+}
+
+/* Tiny screens (≤480px) */
+@media (max-width: 480px) {
+    .game-stage {
+        font-size: 12px !important;
+    }
+
+    .game-stage>div>div:first-child {
+        font-size: 22px !important;
+    }
+
+    .game-stage>div>div:last-child {
+        font-size: 7px !important;
+    }
+
+    .game-stage>div[style*="border: 3px dashed"] {
+        width: 40px !important;
+        height: 40px !important;
+    }
+}

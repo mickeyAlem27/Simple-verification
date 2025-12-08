@@ -8,13 +8,31 @@ export default function ThiefCatchScene({
   autoAdvanceOnSuccess = false,
   autoAdvanceOnFail = false,
 }) {
-  const STAGE_WIDTH = 720; // Match new standard
-  const STAGE_HEIGHT = 480; // Match new standard
+  const STAGE_WIDTH = 720;
+  const STAGE_HEIGHT = 480;
 
-  const policePos = { x: STAGE_WIDTH - 120, y: STAGE_HEIGHT / 2 - 50 };
-  const thiefHome = { x: 60, y: STAGE_HEIGHT - 80 };
-  const bank = { x: 60, y: 40 };
-  const policeStation = { x: policePos.x - 60, y: policePos.y + 40 };
+  // Responsive scaling based on viewport
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const scaleW = vw / STAGE_WIDTH;
+      const scaleH = vh / STAGE_HEIGHT;
+      setScale(Math.min(scaleW * 0.9, scaleH * 0.9)); // 90% to ensure padding
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
+
+  // Use percentage-based positions that scale with viewport
+  const policePos = { x: STAGE_WIDTH * 0.833, y: STAGE_HEIGHT * 0.479 };
+  const thiefHome = { x: STAGE_WIDTH * 0.083, y: STAGE_HEIGHT * 0.833 };
+  const bank = { x: STAGE_WIDTH * 0.083, y: STAGE_HEIGHT * 0.083 };
+  const policeStation = { x: policePos.x - STAGE_WIDTH * 0.083, y: policePos.y + STAGE_HEIGHT * 0.083 };
 
   const totalRounds = 2;
   const tripTime = 4000;
@@ -26,7 +44,7 @@ export default function ThiefCatchScene({
   const [arrowPos, setArrowPos] = useState(null);
   const [message, setMessage] = useState("🎯 Drag the target and throw the stick!");
   const [reticlePos, setReticlePos] = useState({
-    x: bank.x + 90,
+    x: bank.x + STAGE_WIDTH * 0.125, // 12.5% of width
     y: bank.y + (thiefHome.y - bank.y) * 0.55,
   });
   const [tripCount, setTripCount] = useState(0);
@@ -275,7 +293,7 @@ export default function ThiefCatchScene({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          transform: `rotate(${reticleAngle}deg)`,
+          transform: `rotate(0deg)`,
           boxShadow: "0 0 15px rgba(251, 191, 36, 0.3)",
         }}
       >
