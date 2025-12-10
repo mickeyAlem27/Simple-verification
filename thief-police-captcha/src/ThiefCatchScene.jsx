@@ -110,11 +110,11 @@ export default function ThiefCatchScene({
           const crossedTarget = (
             (prev.y > reticlePos.y && newY <= reticlePos.y) || // Moving up, crossed target
             (prev.y < reticlePos.y && newY >= reticlePos.y) || // Moving down, crossed target
-            newDist < 55 // Or currently within hit radius
+            newDist < 45 // Or currently within hit radius
           );
 
           // Also check X distance
-          const xInRange = Math.abs(dx) < 55;
+          const xInRange = Math.abs(dx) < 45;
 
           if (crossedTarget && xInRange) {
             setVerified(true);
@@ -178,8 +178,8 @@ export default function ThiefCatchScene({
     const dy = impactPos.y - thiefPos.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Easier hit detection - increased to 55 for more forgiving gameplay
-    if (dist < 55) {
+    // Balanced hit detection - 45px radius for precise but fair gameplay
+    if (dist < 45) {
       setVerified(true);
       setKickEffect(true);
       setFalling(true);
