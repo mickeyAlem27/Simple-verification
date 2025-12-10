@@ -339,17 +339,35 @@ export default function JungleHuntScene({
     setReticlePos(clamped);
   };
 
+  // Helper to convert screen coordinates to game coordinates
+  const getGameCoordinates = (clientX, clientY) => {
+    if (!stageRef.current) return { x: clientX, y: clientY };
+    const rect = stageRef.current.getBoundingClientRect();
+
+    // Get CSS transform scale
+    const transform = window.getComputedStyle(stageRef.current).transform;
+    let scale = 1;
+    if (transform !== 'none') {
+      const matrix = transform.match(/matrix\(([^)]+)\)/);
+      if (matrix) {
+        const values = matrix[1].split(', ');
+        scale = parseFloat(values[0]) || 1;
+      }
+    }
+
+    // Convert screen coordinates to game coordinates
+    const x = (clientX - rect.left) / scale;
+    const y = (clientY - rect.top) / scale;
+    return { x, y };
+  };
+
   const handleDragStart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const origin = { ...reticlePos };
 
     const move = (event) => {
-      const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      setReticle({ x: origin.x + dx, y: origin.y + dy });
+      const coords = getGameCoordinates(event.clientX, event.clientY);
+      setReticle(coords);
     };
 
     const up = () => {
@@ -363,10 +381,8 @@ export default function JungleHuntScene({
 
   const handleStagePointerDown = (e) => {
     if (!stageRef.current || !levelActive || verified) return;
-    const rect = stageRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setReticle({ x, y });
+    const coords = getGameCoordinates(e.clientX, e.clientY);
+    setReticle(coords);
   };
 
   if (showOverlay) {

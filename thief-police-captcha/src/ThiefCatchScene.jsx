@@ -50,6 +50,7 @@ export default function ThiefCatchScene({
   const [tripCount, setTripCount] = useState(0);
   const [kickEffect, setKickEffect] = useState(false);
   const [falling, setFalling] = useState(false);
+  const stageRef = useRef(null); // Ref for game stage coordinate conversion
   const [reticleAngle, setReticleAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [evidence, setEvidence] = useState([]);
@@ -112,6 +113,37 @@ export default function ThiefCatchScene({
             return { x: prev.x, y: newY };
           }
         }
+
+        // Continuous hit detection - check if thief crosses targeting position
+        // Works equally in both directions (home->bank and bank->home)
+        if (arrowPos && !verified) {
+          const dx = thiefHome.x - reticlePos.x;
+
+          // Check if thief crossed the targeting Y position
+          const prevDist = Math.abs(prev.y - reticlePos.y);
+          const newDist = Math.abs(newY - reticlePos.y);
+
+          // Check if we crossed the target (was far, now close OR was above, now below)
+          const crossedTarget = (
+            (prev.y > reticlePos.y && newY <= reticlePos.y) || // Moving up, crossed target
+            (prev.y < reticlePos.y && newY >= reticlePos.y) || // Moving down, crossed target
+            newDist < 55 // Or currently within hit radius
+          );
+
+          // Also check X distance
+          const xInRange = Math.abs(dx) < 55;
+
+          if (crossedTarget && xInRange) {
+            setVerified(true);
+            setKickEffect(true);
+            setFalling(true);
+            setMessage("💥 PERFECT KICK!");
+            setTimeout(() => {
+              onVerify?.({ success: true, level: LEVEL_ID, scoreAward: LEVEL_SCORE });
+            }, 1000);
+          }
+        }
+
         return { x: prev.x, y: newY };
       });
 
@@ -163,7 +195,8 @@ export default function ThiefCatchScene({
     const dy = impactPos.y - thiefPos.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < 50) {
+    // Easier hit detection - increased to 55 for more forgiving gameplay
+    if (dist < 55) {
       setVerified(true);
       setKickEffect(true);
       setFalling(true);
@@ -175,6 +208,28 @@ export default function ThiefCatchScene({
     } else {
       setMessage("❌ Missed! Try again!");
     }
+  };
+
+  // Helper to convert screen coordinates to game coordinates
+  const getGameCoordinates = (clientX, clientY) => {
+    if (!stageRef.current) return { x: clientX, y: clientY };
+    const rect = stageRef.current.getBoundingClientRect();
+
+    // Get CSS transform scale
+    const transform = window.getComputedStyle(stageRef.current).transform;
+    let scale = 1;
+    if (transform !== 'none') {
+      const matrix = transform.match(/matrix\(([^)]+)\)/);
+      if (matrix) {
+        const values = matrix[1].split(', ');
+        scale = parseFloat(values[0]) || 1;
+      }
+    }
+
+    // Convert screen coordinates to game coordinates
+    const x = (clientX - rect.left) / scale;
+    const y = (clientY - rect.top) / scale;
+    return { x, y };
   };
 
   // Optimized drag logic for smooth mobile performance
@@ -204,12 +259,11 @@ export default function ThiefCatchScene({
       // Use requestAnimationFrame for smooth 60fps updates
       rafId = requestAnimationFrame(() => {
         const moveCoords = getCoords(mv);
-        const dx = moveCoords.x - startCoords.x;
-        const dy = moveCoords.y - startCoords.y;
+        const gameCoords = getGameCoordinates(moveCoords.x, moveCoords.y);
 
         setReticlePos({
-          x: Math.max(0, Math.min(STAGE_WIDTH, startReticle.x + dx)),
-          y: Math.max(0, Math.min(STAGE_HEIGHT, startReticle.y + dy)),
+          x: Math.max(0, Math.min(STAGE_WIDTH, gameCoords.x)),
+          y: Math.max(0, Math.min(STAGE_HEIGHT, gameCoords.y)),
         });
       });
     };
@@ -230,7 +284,19 @@ export default function ThiefCatchScene({
   };
 
   return (
-    <div className="game-stage" style={{ background: "linear-gradient(to bottom, #1e293b, #0f172a)" }}>
+    <div
+      ref={stageRef}
+      className="game-stage"
+      style={{ background: "linear-gradient(to bottom, #1e293b, #0f172a)" }}
+      onClick={(e) => {
+        if (verified || arrowPos) return; // Don't allow repositioning after throwing
+        const coords = getGameCoordinates(e.clientX, e.clientY);
+        setReticlePos({
+          x: Math.max(0, Math.min(STAGE_WIDTH, coords.x)),
+          y: Math.max(0, Math.min(STAGE_HEIGHT, coords.y)),
+        });
+      }}
+    >
       {/* City Background Elements */}
       <div style={{ position: "absolute", bottom: 0, width: "100%", height: "40%", background: "#334155", clipPath: "polygon(0 20%, 20% 0, 40% 20%, 60% 5%, 80% 25%, 100% 10%, 100% 100%, 0 100%)", opacity: 0.5 }}></div>
 
@@ -281,6 +347,7 @@ export default function ThiefCatchScene({
       {/* Reticle */}
       <div
         onPointerDown={handleDragStart}
+        onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute",
           top: reticlePos.y - 25,
@@ -302,7 +369,14 @@ export default function ThiefCatchScene({
 
       {/* Controls */}
       <div style={{ position: "absolute", bottom: 20, right: 20 }}>
-        <button className="game-btn" onClick={handleThrow} disabled={verified || arrowPos}>
+        <button
+          className="game-btn"
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent repositioning targeting circle
+            handleThrow();
+          }}
+          disabled={verified || arrowPos}
+        >
           THROW BATON
         </button>
       </div>
