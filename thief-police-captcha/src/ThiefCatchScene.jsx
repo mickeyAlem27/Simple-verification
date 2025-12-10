@@ -11,23 +11,6 @@ export default function ThiefCatchScene({
   const STAGE_WIDTH = 720;
   const STAGE_HEIGHT = 480;
 
-  // Responsive scaling based on viewport
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const updateScale = () => {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const scaleW = vw / STAGE_WIDTH;
-      const scaleH = vh / STAGE_HEIGHT;
-      setScale(Math.min(scaleW * 0.9, scaleH * 0.9)); // 90% to ensure padding
-    };
-
-    updateScale();
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, []);
-
   // Use percentage-based positions that scale with viewport
   const policePos = { x: STAGE_WIDTH * 0.833, y: STAGE_HEIGHT * 0.479 };
   const thiefHome = { x: STAGE_WIDTH * 0.083, y: STAGE_HEIGHT * 0.833 };
