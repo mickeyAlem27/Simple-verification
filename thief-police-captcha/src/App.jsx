@@ -5,10 +5,6 @@ import TempleRunScene from "./TempleRunScene";
 import OrientationSelector from "./OrientationSelector";
 import "./App.css";
 import "./GameContent.css";
-import "./LevelResponsive.css";
-import "./Level1Responsive.css";
-import "./SmallScreenFix.css";
-import "./Level2Responsive.css";
 
 const TOTAL_LEVELS = 4;
 

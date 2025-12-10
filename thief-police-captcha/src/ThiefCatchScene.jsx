@@ -248,7 +248,7 @@ export default function ThiefCatchScene({
 
       {/* Police Station */}
       <div style={{ position: "absolute", top: policeStation.y, left: policeStation.x, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>🚓</div>
+        <div style={{ fontSize: 60 }}>🚓</div>
       </div>
 
       {/* Path */}
