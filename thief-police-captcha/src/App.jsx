@@ -1,8 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import ThiefCatchScene from "./ThiefCatchScene";
 import JungleHuntScene from "./JungleHuntScene";
 import TempleRunScene from "./TempleRunScene";
 import OrientationSelector from "./OrientationSelector";
+import GameIntro from "./GameIntro";
+import LevelIntro from "./LevelIntro";
+import { useSoundManager, MuteButton } from "./SoundManager";
 import "./App.css";
 import "./GameContent.css";
 
@@ -10,12 +13,29 @@ const TOTAL_LEVELS = 4;
 
 export default function App({ onSuccess }) {
   const [orientation, setOrientation] = useState(null); // null, 'normal', or 'landscape'
+  const [showIntro, setShowIntro] = useState(false); // Show intro after orientation selected
+  const [showLevelIntro, setShowLevelIntro] = useState(true); // Show level instructions
   const [currentLevel, setCurrentLevel] = useState(1);
   const [score, setScore] = useState(0);
   const [result, setResult] = useState(null); // "success", "fail", or null
   const [resultMeta, setResultMeta] = useState({});
   const [gameKey, setGameKey] = useState(0); // Used to force-reset levels
   const [roundsCleared, setRoundsCleared] = useState(0); // Track rounds for Level 2 Score Attack
+  const [showLevel2Choice, setShowLevel2Choice] = useState(false); // Show choice after Level 2 round 1
+
+  const { sounds, isMuted, setIsMuted } = useSoundManager();
+
+  // Start background music when intro starts and keep it playing
+  useEffect(() => {
+    if (showIntro) {
+      sounds.startBgMusic();
+    }
+  }, [showIntro]);
+
+  // Show level intro when level changes
+  useEffect(() => {
+    setShowLevelIntro(true);
+  }, [currentLevel]);
 
   const handleRetry = () => {
     // Retry the CURRENT level, don't reset to 1
@@ -42,6 +62,7 @@ export default function App({ onSuccess }) {
 
       // Level 1 Logic
       if (level === 1) {
+        sounds.catch();
         setResult("success");
         setResultMeta({ level, reason: "caught" });
         // Auto-advance logic handled by UI button now
@@ -49,21 +70,26 @@ export default function App({ onSuccess }) {
 
       // Level 2 Logic (Round System)
       if (level === 2) {
+        console.log("Level 2 complete! roundsCleared:", roundsCleared);
+
         // If we cleared 1 round (so we just finished round 2), we WIN the level
         // Round 0 (First 15s) -> Round 1 (Second 15s) -> Win
         if (roundsCleared >= 1) {
+          sounds.catch();
           setResult("success");
           setResultMeta({ level, reason: "all_levels_cleared" });
           // Prepare for Level 3
           setTimeout(() => setCurrentLevel(3), 2000);
         } else {
-          setRoundsCleared(prev => prev + 1);
-          setGameKey((prev) => prev + 1); // Regenerate level
+          // After first round, show choice screen
+          console.log("Round 1 complete - showing choice screen, showLevel2Choice will be:", true);
+          setShowLevel2Choice(true);
         }
       }
 
       // Level 3 Logic
       if (level === 3) {
+        sounds.catch();
         setResult("success");
         setResultMeta({ level, reason: "game_complete" });
         if (onSuccess) onSuccess({ score: score + (scoreAward || 0), rank: getRank(score + (scoreAward || 0)) });
@@ -86,6 +112,7 @@ export default function App({ onSuccess }) {
         return;
       }
 
+      sounds.fail();
       setResult("fail");
       setResultMeta({ level, reason });
     }
@@ -109,11 +136,26 @@ export default function App({ onSuccess }) {
   };
 
   const renderLevel = () => {
+    // Show Level Intro first
+    if (showLevelIntro) {
+      return (
+        <LevelIntro
+          level={currentLevel}
+          onStart={() => {
+            setShowLevelIntro(false);
+            // Ensure music is playing
+            if (!isMuted) sounds.startBgMusic();
+          }}
+        />
+      );
+    }
+
     if (currentLevel === 1) {
       return (
         <ThiefCatchScene
           key={`level-1-${gameKey}`}
           onVerify={handleLevelVerify}
+          sounds={sounds}
           autoAdvanceOnSuccess={false}
           autoAdvanceOnFail={false}
         />
@@ -125,6 +167,7 @@ export default function App({ onSuccess }) {
         <JungleHuntScene
           key={`level-2-${gameKey}`}
           onVerify={handleLevelVerify}
+          sounds={sounds}
           autoAdvanceOnSuccess={false}
           autoAdvanceOnFail={false}
         />
@@ -136,6 +179,7 @@ export default function App({ onSuccess }) {
         <TempleRunScene
           key={`level-3-${gameKey}`}
           onVerify={handleLevelVerify}
+          sounds={sounds}
         />
       );
     }
@@ -146,10 +190,21 @@ export default function App({ onSuccess }) {
   return (
     <>
       {/* Show orientation selector if not selected yet */}
-      {!orientation && <OrientationSelector onSelect={setOrientation} />}
+      {!orientation && <OrientationSelector onSelect={(o) => {
+        setOrientation(o);
+        setShowIntro(true); // Show intro after orientation is selected
+      }} />}
 
-      {/* Show game only after orientation is selected */}
-      {orientation && (
+      {/* Show epic intro after orientation selected */}
+      {orientation && showIntro && (
+        <GameIntro onComplete={() => setShowIntro(false)} />
+      )}
+
+      {/* Mute button */}
+      {orientation && <MuteButton isMuted={isMuted} onToggle={() => setIsMuted(!isMuted)} />}
+
+      {/* Show game only after orientation is selected and intro is done */}
+      {orientation && !showIntro && (
         <div className={`game-container ${orientation === 'landscape' ? 'landscape-mode' : 'normal-mode'}`}>
           {/* HUD */}
           <div className="game-hud">
@@ -168,6 +223,53 @@ export default function App({ onSuccess }) {
           </div>
 
           {renderLevel()}
+
+          {/* Level 2 Choice Screen */}
+          {showLevel2Choice && (
+            <div className="final-overlay">
+              <div className="final-card">
+                <div className="icon-wrapper">
+                  <div className="icon">🎯</div>
+                </div>
+
+                <h2 className="title">ROUND 1 COMPLETE!</h2>
+                <p className="subtitle">Great job! What would you like to do?</p>
+
+                <div className="score-card">
+                  <div className="score-row">
+                    <span>Current Score</span>
+                    <span className="score-value">{score}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <button
+                    className="game-btn"
+                    onClick={() => {
+                      setShowLevel2Choice(false);
+                      setRoundsCleared(prev => prev + 1);
+                      setGameKey(prev => prev + 1);
+                    }}
+                    style={{ flex: '1', minWidth: '200px' }}
+                  >
+                    🔄 PLAY AGAIN
+                    <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '0.3rem' }}>Collect More Points!</div>
+                  </button>
+                  <button
+                    className="game-btn"
+                    onClick={() => {
+                      setShowLevel2Choice(false);
+                      setCurrentLevel(3);
+                    }}
+                    style={{ flex: '1', minWidth: '200px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+                  >
+                    ➡️ CONTINUE
+                    <div style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '0.3rem' }}>Next Level</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ✅ Success Popup (Final) */}
           {result === "success" && resultMeta.reason === "game_complete" && (

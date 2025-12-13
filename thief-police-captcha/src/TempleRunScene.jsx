@@ -1,25 +1,28 @@
 import React, { useState, useEffect, useRef } from "react";
 
 const LEVEL_ID = 3;
-const LEVEL_DURATION_MS = 20_000;
+const LEVEL_DURATION_MS = 30_000; // 30 seconds
 const REQUIRED_CATCHES = 5;
 const GRID_SIZE = 3; // 3x3 Grid
 const POPUP_INTERVAL_MS = 900; // How often they pop up
 const POPUP_DURATION_MS = 800; // How long they stay up
 
-export default function TempleRunScene({ onVerify }) {
+export default function TempleRunScene({ onVerify, sounds }) {
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(LEVEL_DURATION_MS / 1000);
     const [catches, setCatches] = useState(0);
-    const [activeCell, setActiveCell] = useState(null); // { index: number, type: 'thief' | 'bomb' }
+    const [activeCells, setActiveCells] = useState([]); // Array of active cells
     const [gameState, setGameState] = useState("playing"); // playing, won, lost
-    const [message, setMessage] = useState("Catch the Thief 5 times! Avoid Bombs!");
+    const [message, setMessage] = useState("Survive 30 seconds! Catch 5+ thieves to pass!");
     const [evidence, setEvidence] = useState([]);
 
     const timerRef = useRef(null);
     const popupTimerRef = useRef(null);
     const sessionId = useRef(crypto.randomUUID());
     const gameStateRef = useRef(gameState);
+    const catchesRef = useRef(0); // Track catches for timer
+    const scoreRef = useRef(0); // Track score for timer
+    const attemptsRef = useRef(0); // Track total clicks/attempts
 
     // Keep ref in sync with state
     useEffect(() => {
@@ -96,34 +99,62 @@ export default function TempleRunScene({ onVerify }) {
         timerRef.current = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
-                    handleGameOver("lost");
+                    // Time's up! Check if player caught enough thieves
+                    clearInterval(timerRef.current);
+                    clearInterval(popupTimerRef.current);
+
+                    // Need 5+ catches to pass
+                    if (catchesRef.current >= REQUIRED_CATCHES) {
+                        setGameState("won");
+                        setMessage(`🏆 Time's up! You caught ${catchesRef.current} thieves! Final Score: ${scoreRef.current}`);
+                        sendVerifyToServer(true).then((data) => {
+                            setTimeout(() => {
+                                onVerify({ success: true, level: LEVEL_ID, scoreAward: scoreRef.current + 500, data });
+                            }, 1500);
+                        });
+                    } else {
+                        setGameState("lost");
+                        setMessage(`💀 Time's up! Only caught ${catchesRef.current}/${REQUIRED_CATCHES} thieves!`);
+                        onVerify({ success: false, level: LEVEL_ID, reason: "insufficient_catches" });
+                    }
                     return 0;
                 }
                 return prev - 1;
             });
         }, 1000);
 
-        // Popup Logic
+        // Popup Logic - Spawn 2 bombs + 1 thief for more engaging gameplay
+        // Popup Logic - Spawn 2 bombs + 1 thief
         const spawnEntity = () => {
             // Clear current
-            setActiveCell(null);
+            setActiveCells([]);
 
             // Wait a tiny bit then spawn new
             setTimeout(() => {
                 if (gameStateRef.current !== "playing") return;
 
-                const randomIndex = Math.floor(Math.random() * (GRID_SIZE * GRID_SIZE));
-                // 30% chance of Bomb, 70% Thief
-                const type = Math.random() > 0.3 ? "thief" : "bomb";
+                // Get 3 unique random positions
+                const positions = new Set();
+                while (positions.size < 3) {
+                    positions.add(Math.floor(Math.random() * (GRID_SIZE * GRID_SIZE)));
+                }
+                const posArray = Array.from(positions);
 
-                setActiveCell({ index: randomIndex, type });
+                const newEntities = [
+                    { index: posArray[0], type: "thief" },
+                    { index: posArray[1], type: "bomb" },
+                    { index: posArray[2], type: "bomb" }
+                ];
+
+                setActiveCells(newEntities);
+
+                setActiveCells(newEntities);
+
+                // We don't increment attempts here anymore - only on user interaction
 
                 // Auto-hide after duration
                 setTimeout(() => {
-                    setActiveCell((current) => {
-                        if (current && current.index === randomIndex) return null;
-                        return current;
-                    });
+                    setActiveCells([]);
                 }, POPUP_DURATION_MS);
 
             }, 200);
@@ -138,30 +169,46 @@ export default function TempleRunScene({ onVerify }) {
         };
     }, []); // Empty deps is OK now because we use ref
 
-    // Win Check
-    useEffect(() => {
-        if (catches >= REQUIRED_CATCHES && gameState === "playing") {
-            handleGameOver("won");
-        }
-    }, [catches, gameState]); // Add dependencies
+    // No instant win - must survive full 30 seconds
 
     const handleCellClick = (index) => {
         if (gameState !== "playing") return;
 
-        if (activeCell && activeCell.index === index) {
-            if (activeCell.type === "thief") {
+        // Increment attempts for ANY click
+        attemptsRef.current += 1;
+
+        const clickedEntity = activeCells.find(c => c.index === index);
+
+        if (clickedEntity) {
+            // Remove this entity immediately
+            setActiveCells(prev => prev.filter(c => c.index !== index));
+
+            if (clickedEntity.type === "thief") {
                 // Good hit
-                setCatches((prev) => prev + 1);
-                setScore((prev) => prev + 100);
-                setMessage(`👊 Got him! (${catches + 1}/${REQUIRED_CATCHES})`);
+                sounds?.catch();
+                const newCatches = catches + 1;
+                setCatches(newCatches);
+                catchesRef.current = newCatches; // Update ref
+                setScore((prev) => {
+                    const newScore = prev + 100;
+                    scoreRef.current = newScore;
+                    return newScore;
+                });
+                setMessage(`👊 Got him! (${newCatches}/${attemptsRef.current})`);
                 collectEvidence("hit_thief", { index, timeLeft });
-                setActiveCell(null); // Hide immediately
             } else {
-                // Bad hit (Bomb)
-                setScore((prev) => Math.max(0, prev - 50));
-                setMessage("💥 OUCH! That was a trap!");
+                // Bad hit (Bomb) - Decrease catches AND score
+                sounds?.fail();
+                const newCatches = Math.max(0, catches - 1);
+                setCatches(newCatches);
+                catchesRef.current = newCatches;
+                setScore((prev) => {
+                    const newScore = Math.max(0, prev - 50);
+                    scoreRef.current = newScore;
+                    return newScore;
+                });
+                setMessage(`💥 OUCH! That was a trap! -1 catch, -50 points (${newCatches}/${attemptsRef.current})`);
                 collectEvidence("hit_bomb", { index, timeLeft });
-                setActiveCell(null);
 
                 // Screen shake effect
                 document.body.style.transform = "translate(5px, 5px)";
@@ -180,7 +227,7 @@ export default function TempleRunScene({ onVerify }) {
                 <h2 style={{ margin: 0, color: "#f1c40f", fontSize: 24 }}>TEMPLE SHOWDOWN</h2>
                 <div style={{ display: "flex", gap: 20, marginTop: 10, fontSize: 18, fontWeight: "bold", color: "#ccc" }}>
                     <span>⏱️ {timeLeft}s</span>
-                    <span>🎯 {catches}/{REQUIRED_CATCHES}</span>
+                    <span>🎯 {catches}/{attemptsRef.current}</span>
                 </div>
             </div>
 
@@ -196,9 +243,10 @@ export default function TempleRunScene({ onVerify }) {
                 }}
             >
                 {gridSpots.map((_, i) => {
-                    const isActive = activeCell && activeCell.index === i;
-                    const isThief = isActive && activeCell.type === "thief";
-                    const isBomb = isActive && activeCell.type === "bomb";
+                    const activeEntity = activeCells.find(c => c.index === i);
+                    const isActive = !!activeEntity;
+                    const isThief = activeEntity?.type === "thief";
+                    const isBomb = activeEntity?.type === "bomb";
 
                     return (
                         <div

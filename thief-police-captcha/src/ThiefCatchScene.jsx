@@ -5,6 +5,7 @@ const LEVEL_SCORE = 120;
 
 export default function ThiefCatchScene({
   onVerify,
+  sounds,
   autoAdvanceOnSuccess = false,
   autoAdvanceOnFail = false,
 }) {
@@ -44,6 +45,7 @@ export default function ThiefCatchScene({
   const animationRefs = useRef({ arrow: null, thief: null });
   const onVerifyRef = useRef(onVerify);
   const failedRef = useRef(false);
+  const kickAttemptedRef = useRef(false); // Track if kick was attempted this trip
 
   // Keep onVerify ref updated
   useEffect(() => {
@@ -74,6 +76,7 @@ export default function ThiefCatchScene({
           if (newY <= bank.y) {
             newY = bank.y;
             forwardRef.current = false;
+            kickAttemptedRef.current = false; // Reset for new trip
             pauseRef.current = true;
             setTimeout(() => {
               pauseRef.current = false;
@@ -87,6 +90,7 @@ export default function ThiefCatchScene({
           if (newY >= thiefHome.y) {
             newY = thiefHome.y;
             forwardRef.current = true;
+            kickAttemptedRef.current = false; // Reset for new trip
             setTripCount((c) => c + 1);
             pauseRef.current = true;
             setTimeout(() => {
@@ -97,26 +101,21 @@ export default function ThiefCatchScene({
           }
         }
 
-        // Continuous hit detection - check if thief crosses targeting position
-        // Works equally in both directions (home->bank and bank->home)
-        if (arrowPos && !verified) {
-          const dx = thiefHome.x - reticlePos.x;
+        // PRECISE SYMMETRIC KICK DETECTION
+        // Works equally in BOTH directions (home→bank AND bank→home)
+        if (!verified) {
+          // Calculate exact distance from thief to reticle
+          const dx = thiefPos.x - reticlePos.x;
+          const dy = newY - reticlePos.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // Check if thief crossed the targeting Y position
-          const prevDist = Math.abs(prev.y - reticlePos.y);
-          const newDist = Math.abs(newY - reticlePos.y);
-
-          // Check if we crossed the target (was far, now close OR was above, now below)
-          const crossedTarget = (
-            (prev.y > reticlePos.y && newY <= reticlePos.y) || // Moving up, crossed target
-            (prev.y < reticlePos.y && newY >= reticlePos.y) || // Moving down, crossed target
-            newDist < 45 // Or currently within hit radius
-          );
-
-          // Also check X distance
-          const xInRange = Math.abs(dx) < 45;
-
-          if (crossedTarget && xInRange) {
+          // STRICT RADIUS CHECK - Only kick if thief is within 30px radius RIGHT NOW
+          // AND both X and Y distances must be small (Explicit Symmetry)
+          const xDistance = Math.abs(dx);
+          const yDistance = Math.abs(dy);
+          if (distance < 30 && xDistance < 30 && yDistance < 30 && !kickAttemptedRef.current) {
+            kickAttemptedRef.current = true; // Mark as attempted
+            sounds?.kick();
             setVerified(true);
             setKickEffect(true);
             setFalling(true);
@@ -149,6 +148,7 @@ export default function ThiefCatchScene({
   const handleThrow = () => {
     if (verified || arrowPos) return;
 
+    sounds?.throw();
     const start = { x: policePos.x, y: policePos.y + 20 };
     const end = { ...reticlePos };
     const duration = 600;
@@ -174,12 +174,21 @@ export default function ThiefCatchScene({
   };
 
   const checkHit = (impactPos) => {
-    const dx = impactPos.x - thiefPos.x;
-    const dy = impactPos.y - thiefPos.y;
+    // Check distance from THIEF to RETICLE (target position)
+    // This ensures we only hit if thief is actually at the target
+    const dx = thiefPos.x - reticlePos.x;
+    const dy = thiefPos.y - reticlePos.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Balanced hit detection - 45px radius for precise but fair gameplay
-    if (dist < 45) {
+    // Precise hit detection - 30px radius for accurate targeting
+    // Only hit if thief is currently at the target position
+    // Explicitly check X and Y symmetry
+    const xDistance = Math.abs(dx);
+    const yDistance = Math.abs(dy);
+
+    if (dist < 30 && xDistance < 30 && yDistance < 30 && !kickAttemptedRef.current) {
+      kickAttemptedRef.current = true; // Prevent multiple hits
+      sounds?.kick();
       setVerified(true);
       setKickEffect(true);
       setFalling(true);
@@ -320,9 +329,20 @@ export default function ThiefCatchScene({
         🥷
       </div>
 
-      {/* Arrow */}
+      {/* Arrow - Centered at target */}
       {arrowPos && (
-        <div style={{ position: "absolute", top: arrowPos.y, left: arrowPos.x, fontSize: 30, transform: "rotate(-45deg)" }}>
+        <div style={{
+          position: "absolute",
+          top: arrowPos.y - 15,
+          left: arrowPos.x - 15,
+          fontSize: 30,
+          transform: "rotate(-45deg)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 30,
+          height: 30
+        }}>
           🔗
         </div>
       )}

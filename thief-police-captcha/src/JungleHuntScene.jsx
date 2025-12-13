@@ -18,6 +18,7 @@ const STAGE_HEIGHT = 480; // Match new standard
 
 export default function JungleHuntScene({
   onVerify,
+  sounds,
   autoAdvanceOnSuccess = false,
   autoAdvanceOnFail = false,
 }) {
@@ -206,19 +207,18 @@ export default function JungleHuntScene({
     // Actually levelScore tracks what we hit THIS round.
     const payout = levelScore;
 
-    sendVerifyToServer(true)
-      .then((data) => {
-        onVerify?.({
-          success: true,
-          data,
-          level: LEVEL_ID,
-          scoreAward: payout,
-          hits: hitSetRef.current.size,
-        });
-      })
-      .catch((error) => {
-        onVerify?.({ success: false, level: LEVEL_ID, reason: "server_error", error });
-      });
+    // Call onVerify immediately to trigger choice screen
+    onVerify?.({
+      success: true,
+      level: LEVEL_ID,
+      scoreAward: payout,
+      hits: hitSetRef.current.size,
+    });
+
+    // Send to server in background
+    sendVerifyToServer(true).catch((error) => {
+      console.error("Server verification failed:", error);
+    });
   };
 
   const finalizeFailure = (reason) => {
@@ -251,6 +251,7 @@ export default function JungleHuntScene({
   const handleThrow = () => {
     if (verified || !levelActive) return;
 
+    sounds?.throw();
     const start = { x: policeCamp.x + 40, y: policeCamp.y - 20 };
     const shotTarget = { ...reticleRef.current };
 
@@ -289,6 +290,7 @@ export default function JungleHuntScene({
         if (!alreadyHit) {
           if (gameTargets.real.has(hitTargetId)) {
             // Real Target Hit
+            sounds?.hit();
             hitSetRef.current.add(hitTargetId);
             const updated = hitSetRef.current.size;
             setHitTargets(Array.from(hitSetRef.current));
@@ -297,17 +299,13 @@ export default function JungleHuntScene({
 
             setMessage(`🎯 Real Idol secured! (${updated}/${REQUIRED_HITS})`);
 
-            // Early Win Check -> Now triggers REGENERATION (Round Retry)
+            // Early Win Check -> Round complete!
             if (updated >= REQUIRED_HITS) {
               setTimeout(() => {
-                // We send "retry_round" as failure reason to trigger the special logic in App.jsx
-                // But technically it's a "success" for this round.
-                // App.jsx expects success=false + reason="retry_round" to regenerate.
-
+                // Call onVerify with success to trigger choice screen
                 onVerify?.({
-                  success: false,
+                  success: true,
                   level: LEVEL_ID,
-                  reason: "retry_round",
                   scoreAward: levelScore + PER_IDOL_SCORE // Include the last hit!
                 });
               }, 500);
@@ -494,7 +492,9 @@ export default function JungleHuntScene({
                   height: 85,
                   background: "linear-gradient(180deg, #5a3419, #2d1407)",
                   borderRadius: 12,
-                  marginTop: -12,
+                  marginTop: -50,
+                  marginLeft: "auto",
+                  marginRight: "auto",
                   boxShadow: "inset 0 0 5px rgba(0,0,0,0.35)",
                   position: "relative",
                   overflow: "hidden",
@@ -576,7 +576,9 @@ export default function JungleHuntScene({
                 height: 85,
                 background: "linear-gradient(180deg, #5a3419, #2d1407)",
                 borderRadius: 12,
-                marginTop: -12,
+                marginTop: -50,
+                marginLeft: "auto",
+                marginRight: "auto",
                 boxShadow: "inset 0 0 5px rgba(0,0,0,0.35)",
                 position: "relative",
                 overflow: "hidden",
